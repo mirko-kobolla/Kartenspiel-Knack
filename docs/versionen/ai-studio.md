@@ -10,7 +10,9 @@ Die gemeinsame Wertung und die versionsübergreifenden Regeln stehen in [Spielre
 
 - Die Anwendung ist eine einzelne HTML-Datei mit inline eingebettetem CSS und JavaScript.
 - PeerJS 1.5.4 wird zur Laufzeit über ein externes CDN geladen. Die Mehrspieler-Verbindung verwendet WebRTC mit PeerJS-Signaling; es gibt keinen eigenen Anwendungsserver im Repository.
-- Die Oberfläche ist für Desktop-Browser und iPads gestaltet. Für Tests auf iOS Safari einen lokalen HTTP-Server verwenden, nicht die JavaScript-blockierende Dateivorschau.
+- Die Oberfläche ist responsiv für Desktop- und Mobilbrowser ausgelegt. Für Mehrspieler muss die Seite über HTTPS oder einen lokalen HTTP-Server geöffnet werden, damit die Browser WebRTC verwenden können. Auf iOS Safari die Seite nicht in der JavaScript-blockierenden Dateivorschau öffnen.
+
+Die Viewport-Einstellungen erlauben Browser-Zoom. Die Mindestabstände des App-Rahmens berücksichtigen Display-Sicherheitsbereiche (z. B. Notch und Home-Indikator); `100vh` dient als Fallback für Browser ohne `100dvh`.
 
 ## Spielablauf und Zustand
 
@@ -60,4 +62,6 @@ Wichtige Verhaltensanforderungen:
 5. Nach `GAME_OVER` die Host-Übergabe testen.
 6. Insbesondere auf iPad Safari Karten-Touch, Popup-Bestätigung und Wiederverbindung nach Host-Wechsel prüfen.
 
-Es gibt derzeit keine automatisierte Test- oder Build-Konfiguration für diese HTML-Datei. Manuelle Prüfungen daher nicht als automatisierte Abdeckung ausgeben.
+Für die responsive Sichtprüfung mindestens schmale Ansichten ab 320 CSS-Pixel sowie Desktop-Breiten und Hoch- und Querformat testen. Zusätzlich Browser-Zoom und bei iOS die Safe Areas prüfen. Viewport-Emulation in Chromium ersetzt keine Tests auf physischen Android- und Apple-Geräten; iOS Safari, reale Tastaturen, Hintergrundwechsel und herstellerspezifische Energiesparregeln müssen dort separat geprüft werden.
+
+Es gibt derzeit keine automatisierte Test- oder Build-Konfiguration für diese HTML-Datei. Manuelle Prüfungen daher nicht als automatisierte Abdeckung oder als Nachweis physischer Gerätetests ausgeben.
