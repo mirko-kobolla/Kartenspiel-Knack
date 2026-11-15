@@ -486,6 +486,15 @@
       border-radius: 12px; padding: 10px 18px; font-weight: 800; z-index: 9999; box-shadow: var(--shadow); pointer-events: none;
     }
 
+    .language-picker {
+      display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+      padding: 0 2px 8px; color: var(--text-muted); font-size: 0.85rem; font-weight: 700;
+    }
+    .language-picker select {
+      background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 10px; font: inherit;
+    }
+
     @media (max-width: 860px) {
       .role-grid, .lobby-grid, .tables-grid { grid-template-columns: 1fr; }
       .action-dock { grid-template-columns: repeat(2, 1fr); }
@@ -496,6 +505,16 @@
 </head>
 <body>
   <div class="app-shell">
+    <div class="language-picker">
+      <label for="language-select">Sprache</label>
+      <select id="language-select" aria-label="Sprache">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="it">Italiano</option>
+      </select>
+    </div>
     <!-- ==================== 1. START SCREEN ==================== -->
     <section id="screen-start" class="start-screen">
       <div class="brand-badge">♠ ♥ Französisches Skat-Bild ♦ ♣</div>
@@ -2639,6 +2658,621 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
+
+    const LANGUAGE_TEXTS = {
+      'KNACK – Live Kartenspiel (Altenburg Skat-Bild)': ['KNACK – Live Card Game (Altenburg deck)', 'KNACK – Jeu de cartes en direct (jeu d’Altenbourg)', 'KNACK – Juego de cartas en vivo (baraja de Altenburgo)', 'KNACK – Gioco di carte dal vivo (mazzo di Altenburg)'],
+      'Sprache': ['Language', 'Langue', 'Idioma', 'Lingua'],
+      '♠ ♥ Französisches Skat-Bild ♦ ♣': ['♠ ♥ French-suited Skat deck ♦ ♣', '♠ ♥ Jeu de Skat français ♦ ♣', '♠ ♥ Baraja francesa de Skat ♦ ♣', '♠ ♥ Mazzo francese da Skat ♦ ♣'],
+      'Das klassische Kartenspiel (Schwimmen / Schnauz) im Altenburger Skat-Design. Der Host spielt direkt selbst mit – und nach Spielende kann jeder die Host-Rolle übernehmen!': [
+        'The classic card game (Thirty-One / Schnauz) in the Altenburg Skat design. The host plays too—and after the game, any player can take over as host!',
+        'Le jeu de cartes classique (Schwimmen / Schnauz) avec le jeu de Skat d’Altenbourg. L’hôte joue aussi et, après la partie, n’importe quel joueur peut reprendre le rôle d’hôte !',
+        'El clásico juego de cartas (Schwimmen / Schnauz) con la baraja de Skat de Altenburgo. El anfitrión también juega y, al terminar, cualquier jugador puede asumir ese papel.',
+        'Il classico gioco di carte (Schwimmen / Schnauz) con il mazzo da Skat di Altenburg. Anche l’host gioca e, a partita finita, qualsiasi giocatore può assumere il ruolo di host.'
+      ],
+      '⚠️ JavaScript wird in dieser Ansicht blockiert (z. B. iPad-Dateivorschau / Quick Look). Bitte öffne diese Datei in Safari über einen Webserver (z. B. VS Code Live Server) oder Browser.': [
+        '⚠️ JavaScript is blocked in this view (e.g. iPad file preview / Quick Look). Open this file in Safari through a web server (e.g. VS Code Live Server) or another browser.',
+        '⚠️ JavaScript est bloqué dans cette vue (par ex. aperçu de fichier sur iPad / Quick Look). Ouvrez ce fichier dans Safari via un serveur Web (par ex. VS Code Live Server) ou un autre navigateur.',
+        '⚠️ JavaScript está bloqueado en esta vista (p. ej., vista previa de archivos del iPad / Quick Look). Abre el archivo en Safari mediante un servidor web (p. ej., VS Code Live Server) u otro navegador.',
+        '⚠️ JavaScript è bloccato in questa vista (ad es. anteprima file su iPad / Quick Look). Apri il file in Safari tramite un server web (ad es. VS Code Live Server) o un altro browser.'
+      ],
+      'Neues Spiel hosten': ['Host a new game', 'Héberger une nouvelle partie', 'Crear una partida', 'Ospita una nuova partita'],
+      'Raum eröffnen, Regeln festlegen und selbst als Spieler mit am Tisch sitzen.': ['Create a room, set the rules, and play at the table yourself.', 'Créez une salle, définissez les règles et jouez vous-même.', 'Crea una sala, establece las reglas y juega también.', 'Crea una stanza, imposta le regole e gioca anche tu.'],
+      'Spiel beitreten': ['Join a game', 'Rejoindre une partie', 'Unirse a una partida', 'Partecipa a una partita'],
+      'Mit 4-stelliger Raum-ID & Namen einem laufenden Raum beitreten.': ['Join an active room with its 4-digit room ID and your name.', 'Rejoignez une salle en cours avec son identifiant à 4 chiffres et votre nom.', 'Únete a una sala en curso con su ID de 4 dígitos y tu nombre.', 'Entra in una stanza in corso con il suo ID a 4 cifre e il tuo nome.'],
+      'DEMO ansehen': ['Watch DEMO', 'Voir la DÉMO', 'Ver DEMO', 'Guarda la DEMO'],
+      'Lerne die Regeln in einem langsamen Bot-Spiel mit Erklärungen zu jedem Zug und den möglichen Optionen.': ['Learn the rules in a slow bot game with explanations of every move and available options.', 'Découvrez les règles dans une partie lente contre des bots, avec des explications sur chaque coup et les options possibles.', 'Aprende las reglas con una partida lenta de bots que explica cada jugada y las opciones disponibles.', 'Impara le regole con una partita lenta tra bot che spiega ogni mossa e le opzioni disponibili.'],
+      'Zurück': ['Back', 'Retour', 'Volver', 'Indietro'],
+      'Dein Spielername': ['Your player name', 'Votre nom de joueur', 'Tu nombre de jugador', 'Il tuo nome giocatore'],
+      'z.B. Alex': ['e.g. Alex', 'p. ex. Alex', 'p. ej., Alex', 'es. Alex'],
+      'Raum eröffnen & mitspielen': ['Create room & play', 'Créer une salle et jouer', 'Crear sala y jugar', 'Crea stanza e gioca'],
+      '4-stellige Raum-ID (nach KNACK-)': ['4-digit room ID (after KNACK-)', 'Identifiant de salle à 4 chiffres (après KNACK-)', 'ID de sala de 4 dígitos (después de KNACK-)', 'ID stanza a 4 cifre (dopo KNACK-)'],
+      'z.B. 7412': ['e.g. 7412', 'p. ex. 7412', 'p. ej., 7412', 'es. 7412'],
+      'Dein Name': ['Your name', 'Votre nom', 'Tu nombre', 'Il tuo nome'],
+      'z.B. Mia': ['e.g. Mia', 'p. ex. Mia', 'p. ej., Mia', 'es. Mia'],
+      'Bitte deinen Spielernamen eingeben.': ['Please enter your player name.', 'Veuillez saisir votre nom de joueur.', 'Escribe tu nombre de jugador.', 'Inserisci il tuo nome giocatore.'],
+      'Bitte deinen Namen eingeben.': ['Please enter your name.', 'Veuillez saisir votre nom.', 'Escribe tu nombre.', 'Inserisci il tuo nome.'],
+      'Bitte die 4-stellige Raum-ID eingeben.': ['Please enter the 4-digit room ID.', 'Veuillez saisir l’identifiant de salle à 4 chiffres.', 'Introduce el ID de sala de 4 dígitos.', 'Inserisci l’ID stanza a 4 cifre.'],
+      'Bitte gültigen Namen eingeben.': ['Please enter a valid name.', 'Veuillez saisir un nom valide.', 'Introduce un nombre válido.', 'Inserisci un nome valido.'],
+      'Dieser Name ist bereits vergeben.': ['This name is already taken.', 'Ce nom est déjà utilisé.', 'Ese nombre ya está en uso.', 'Questo nome è già in uso.'],
+      'Das Spiel läuft bereits.': ['The game is already in progress.', 'La partie est déjà en cours.', 'La partida ya está en curso.', 'La partita è già in corso.'],
+      'Der Raum ist voll (max. 8 Spieler).': ['The room is full (max. 8 players).', 'La salle est complète (8 joueurs max.).', 'La sala está llena (máx. 8 jugadores).', 'La stanza è piena (max. 8 giocatori).'],
+      'Vom Host entfernt.': ['Removed by the host.', 'Retiré par l’hôte.', 'El anfitrión te ha eliminado.', 'Rimosso dall’host.'],
+      'Verbinde mit PeerJS-Signaling...': ['Connecting to PeerJS signaling...', 'Connexion au serveur de signalisation PeerJS...', 'Conectando con la señalización de PeerJS...', 'Connessione al signaling PeerJS...'],
+      'PeerJS-Bibliothek konnte nicht geladen werden (Internetverbindung prüfen).': ['Could not load the PeerJS library (check your internet connection).', 'Impossible de charger la bibliothèque PeerJS (vérifiez votre connexion Internet).', 'No se pudo cargar PeerJS (comprueba la conexión a Internet).', 'Impossibile caricare PeerJS (controlla la connessione Internet).'],
+      'Bereit! Mitspieler können mit der Raum-ID beitreten.': ['Ready! Players can join with the room ID.', 'Prêt ! Les joueurs peuvent rejoindre avec l’identifiant de salle.', '¡Listo! Los jugadores pueden unirse con el ID de sala.', 'Pronto! I giocatori possono entrare con l’ID stanza.'],
+      'PeerJS konnte nicht geladen werden (Internet prüfen).': ['Could not load PeerJS (check your internet connection).', 'Impossible de charger PeerJS (vérifiez votre connexion Internet).', 'No se pudo cargar PeerJS (comprueba Internet).', 'Impossibile caricare PeerJS (controlla Internet).'],
+      'Verbinde...': ['Connecting...', 'Connexion...', 'Conectando...', 'Connessione...'],
+      'Verbunden!': ['Connected!', 'Connecté !', '¡Conectado!', 'Connesso!'],
+      'Raum nicht gefunden. Prüfe die 4-stellige Nummer.': ['Room not found. Check the 4-digit number.', 'Salle introuvable. Vérifiez le numéro à 4 chiffres.', 'Sala no encontrada. Comprueba el número de 4 dígitos.', 'Stanza non trovata. Controlla il numero a 4 cifre.'],
+      'Konnte neuem Host nicht beitreten.': ['Could not join the new host.', 'Impossible de rejoindre le nouvel hôte.', 'No se pudo conectar con el nuevo anfitrión.', 'Impossibile entrare nella nuova stanza host.'],
+      'Host-Wechsel fehlgeschlagen.': ['Host handover failed.', 'Le changement d’hôte a échoué.', 'Falló el cambio de anfitrión.', 'Cambio host non riuscito.'],
+      'Beitritt fehlgeschlagen.': ['Could not join the game.', 'Impossible de rejoindre la partie.', 'No se pudo unir a la partida.', 'Impossibile partecipare alla partita.'],
+      'Konnte neuem Host nicht beitreten.': ['Could not join the new host.', 'Impossible de rejoindre le nouvel hôte.', 'No se pudo conectar con el nuevo anfitrión.', 'Impossibile entrare nella nuova stanza host.'],
+      'Spieler ist nicht verbunden.': ['Player is not connected.', 'Le joueur n’est pas connecté.', 'El jugador no está conectado.', 'Il giocatore non è connesso.'],
+      'Übergebe Host-Rolle...': ['Handing over host role...', 'Transfert du rôle d’hôte...', 'Transfiriendo el rol de anfitrión...', 'Trasferimento del ruolo host...'],
+      'Fordere Host-Rolle an...': ['Requesting host role...', 'Demande du rôle d’hôte...', 'Solicitando el rol de anfitrión...', 'Richiesta del ruolo host...'],
+      'Verbindung zum Host getrennt.': ['Disconnected from the host.', 'Connexion à l’hôte interrompue.', 'Se perdió la conexión con el anfitrión.', 'Connessione all’host interrotta.'],
+      'Bitte gültige Raum-ID eingeben.': ['Please enter a valid room ID.', 'Veuillez saisir un identifiant de salle valide.', 'Introduce un ID de sala válido.', 'Inserisci un ID stanza valido.'],
+      'Ziel:': ['Goal:', 'But :', 'Objetivo:', 'Obiettivo:'],
+      'Vermeide die niedrigste Wertung. Wer ein Leben verliert, schwimmt bei den voreingestellten Regeln zunächst eine Gnadenrunde; danach scheidet man aus.': [
+        'Avoid having the lowest score. Under the default rules, a player who loses a life gets one grace round at zero lives before being eliminated.',
+        'Évitez d’avoir le score le plus bas. Selon les règles par défaut, un joueur qui perd une vie bénéficie d’une manche de grâce à zéro vie avant son élimination.',
+        'Evita obtener la puntuación más baja. Con las reglas predeterminadas, quien pierde una vida juega una ronda de gracia con cero vidas antes de ser eliminado.',
+        'Evita il punteggio più basso. Con le regole predefinite, chi perde una vita ha un round di grazia a zero vite prima di essere eliminato.'
+      ],
+      'Es zählt die Summe der Karten einer Farbe. Ass = 11, Zehn und Bildkarten = 10, Zahlenkarten = ihr Wert. Ein Drilling zählt 30,5; 31 Punkte sind „Knack“ und beenden die Runde sofort. Drei Asse sind „Feuer“.': [
+        'The score is the sum of cards of one suit. Ace = 11; tens and face cards = 10; number cards = their face value. Three of a kind scores 30.5; 31 points is “Knack” and ends the round immediately. Three aces are “Fire.”',
+        'Le score est la somme des cartes d’une même couleur. As = 11 ; dix et figures = 10 ; les autres cartes valent leur nombre. Un brelan vaut 30,5 ; 31 points, c’est « Knack » et la manche s’arrête immédiatement. Trois as forment « Feu ».',
+        'La puntuación suma las cartas de un mismo palo. As = 11; dieces y figuras = 10; las cartas numéricas valen su número. Un trío vale 30,5; 31 puntos es “Knack” y termina la ronda. Tres ases forman “Fuego”.',
+        'Il punteggio è la somma delle carte dello stesso seme. Asso = 11; dieci e figure = 10; le carte numeriche valgono il proprio valore. Un tris vale 30,5; 31 punti è “Knack” e termina subito il round. Tre assi formano “Fuoco”.'
+      ],
+      'Tausche eine Karte oder alle drei mit der offenen Mitte, schiebe ohne Tausch oder klopfe. Im ersten Zug jeder Runde ist Tauschen Pflicht. Nach dem Klopfen bekommt jeder andere aktive Spieler noch einen Zug.': [
+        'Swap one or all three cards with the face-up center cards, pass without swapping, or knock. You must swap on the first turn of each round. After a knock, every other active player gets one more turn.',
+        'Échangez une ou les trois cartes avec celles visibles au centre, passez sans échanger ou frappez. L’échange est obligatoire au premier tour de chaque manche. Après un coup, chaque autre joueur actif joue encore une fois.',
+        'Cambia una o las tres cartas por las del centro, pasa sin cambiar o toca. En el primer turno de cada ronda es obligatorio cambiar. Tras tocar, los demás jugadores activos tienen un turno más.',
+        'Scambia una o tutte e tre le carte con quelle scoperte al centro, passa senza scambiare o bussa. Al primo turno di ogni round lo scambio è obbligatorio. Dopo una bussata, ogni altro giocatore attivo ha un ultimo turno.'
+      ],
+      'Vier Bots spielen automatisch mit Zeitlupe. Vor jedem Zug erklären sie ihre Entscheidung und die erlaubten Alternativen; nach der Runde wird die Wertung erklärt.': [
+        'Four bots play automatically in slow motion. Before each move they explain their decision and the available alternatives; after the round, the scoring is explained.',
+        'Quatre bots jouent automatiquement au ralenti. Avant chaque coup, ils expliquent leur décision et les options possibles ; le score est expliqué à la fin de la manche.',
+        'Cuatro bots juegan automáticamente a cámara lenta. Antes de cada jugada explican su decisión y las alternativas; al final de la ronda se explica la puntuación.',
+        'Quattro bot giocano automaticamente al rallentatore. Prima di ogni mossa spiegano la decisione e le alternative; alla fine del round viene spiegato il punteggio.'
+      ],
+      'Warum dieser Zug?': ['Why this move?', 'Pourquoi ce coup ?', '¿Por qué esta jugada?', 'Perché questa mossa?'],
+      'Welche Möglichkeiten gibt es?': ['What options are available?', 'Quelles sont les options ?', '¿Qué opciones hay?', 'Quali sono le opzioni?'],
+      'Der Geber kann seine Hand behalten und die drei Reservekarten aufdecken oder blind mit der Reserve tauschen. Der Demo-Bot nutzt dafür die 20-Punkte-Schwelle.': [
+        'The dealer can keep their hand and reveal the three reserve cards, or blindly swap for the reserve. The demo bot uses a 20-point threshold.',
+        'Le donneur peut garder sa main et révéler les trois cartes de réserve, ou échanger à l’aveugle contre la réserve. Le bot de la démo applique un seuil de 20 points.',
+        'Quien reparte puede conservar su mano y revelar las tres cartas de reserva, o cambiarla a ciegas por la reserva. El bot usa un umbral de 20 puntos.',
+        'Il mazziere può tenere la propria mano e scoprire le tre carte di riserva oppure scambiarla alla cieca. Il bot usa una soglia di 20 punti.'
+      ],
+      'Wegen der Tauschpflicht muss der Bot eine Karte oder alle drei Karten tauschen. Schieben und Klopfen sind in diesem ersten Zug gesperrt.': [
+        'Because swapping is mandatory, the bot must swap one or all three cards. Passing and knocking are not allowed on this first turn.',
+        'L’échange étant obligatoire, le bot doit échanger une ou les trois cartes. Il ne peut ni passer ni frapper lors de ce premier tour.',
+        'Como el cambio es obligatorio, el bot debe cambiar una o las tres cartas. En este primer turno no se puede pasar ni tocar.',
+        'Dato che lo scambio è obbligatorio, il bot deve scambiare una o tutte e tre le carte. In questo primo turno non può passare né bussare.'
+      ],
+      'Nach dem Klopfen kann der Bot noch tauschen oder schieben. Ein weiteres Klopfen ist nicht möglich.': [
+        'After a knock, the bot can still swap or pass. Knocking again is not allowed.',
+        'Après un coup, le bot peut encore échanger ou passer. Il ne peut pas frapper à nouveau.',
+        'Después de tocar, el bot aún puede cambiar o pasar. No se puede volver a tocar.',
+        'Dopo una bussata, il bot può ancora scambiare o passare. Non può bussare di nuovo.'
+      ],
+      'Der Bot kann eine oder alle drei Karten tauschen, schieben oder klopfen.': [
+        'The bot can swap one or all three cards, pass, or knock.',
+        'Le bot peut échanger une ou les trois cartes, passer ou frapper.',
+        'El bot puede cambiar una o las tres cartas, pasar o tocar.',
+        'Il bot può scambiare una o tutte e tre le carte, passare o bussare.'
+      ],
+      'Zeitlupe · Erklärung zum Zug': ['Slow motion · move explanation', 'Ralenti · explication du coup', 'Cámara lenta · explicación de la jugada', 'Rallentatore · spiegazione della mossa'],
+      'Karten gedrückt halten zum Pausieren': ['Hold cards to pause', 'Maintenez les cartes pour mettre en pause', 'Mantén pulsadas las cartas para pausar', 'Tieni premute le carte per mettere in pausa'],
+      'Warten bis alle Spieler bestätigen': ['Wait for all players to confirm', 'Attendre la confirmation de tous les joueurs', 'Esperar a que todos confirmen', 'Attendi la conferma di tutti i giocatori'],
+      'Diese Hand behalten': ['Keep this hand', 'Garder cette main', 'Conservar esta mano', 'Tieni questa mano'],
+      'Siegerehrung': ['Awards', 'Podium', 'Premiación', 'Premiazione'],
+      'Host abgeben an': ['Hand host role to', 'Céder le rôle d’hôte à', 'Ceder el rol de anfitrión a', 'Cedi il ruolo host a'],
+      'Direkt neues Spiel starten': ['Start a new game', 'Démarrer une nouvelle partie', 'Iniciar una nueva partida', 'Avvia una nuova partita'],
+      'Zurück zur Lobby (Regeln ändern)': ['Back to lobby (change rules)', 'Retour au salon (modifier les règles)', 'Volver a la sala (cambiar reglas)', 'Torna alla lobby (modifica regole)'],
+      'Beitreten': ['Join', 'Rejoindre', 'Unirse', 'Partecipa'],
+      'Spieler': ['Player', 'Joueur', 'Jugador', 'Giocatore'],
+      '👑 Host': ['👑 Host', '👑 Hôte', '👑 Anfitrión', '👑 Host'],
+      'Lobby': ['Lobby', 'Salon', 'Sala', 'Lobby'],
+      'Leben: 3': ['Lives: 3', 'Vies : 3', 'Vidas: 3', 'Vite: 3'],
+      '🎓 DEMO · Bot-Erklärspiel': ['🎓 DEMO · Bot tutorial game', '🎓 DÉMO · Partie explicative avec des bots', '🎓 DEMO · Partida explicativa con bots', '🎓 DEMO · Partita tutorial con bot'],
+      'Warte...': ['Waiting...', 'En attente...', 'Esperando...', 'In attesa...'],
+      '🔔 GEKLOPFT!': ['🔔 KNOCKED!', '🔔 TOC !', '🔔 ¡TOCADO!', '🔔 BUSSATO!'],
+      '📜 Protokoll': ['📜 Game log', '📜 Journal', '📜 Registro', '📜 Registro'],
+      'Popup: Auto + Halten': ['Popup: Auto + Hold', 'Popup : Auto + maintien', 'Ventana: auto + mantener', 'Popup: Auto + tieni premuto'],
+      'Nächste Runde ▶': ['Next round ▶', 'Manche suivante ▶', 'Siguiente ronda ▶', 'Prossimo round ▶'],
+      'Zur Siegerehrung 🏆': ['View podium 🏆', 'Voir le podium 🏆', 'Ver podio 🏆', 'Vai al podio 🏆'],
+      'Beenden': ['Exit', 'Quitter', 'Salir', 'Esci'],
+      'Raum-ID zum Beitreten': ['Room ID to join', 'Identifiant de salle à rejoindre', 'ID de sala para unirse', 'ID stanza per partecipare'],
+      'Verbunden': ['Connected', 'Connecté', 'Conectado', 'Connesso'],
+      'Spieler am Tisch (': ['Players at the table (', 'Joueurs à la table (', 'Jugadores en la mesa (', 'Giocatori al tavolo ('],
+      ' / 8)': [' / 8)', ' / 8)', ' / 8)', ' / 8)'],
+      '+ KI-Bot hinzufügen': ['+ Add AI bot', '+ Ajouter un bot IA', '+ Añadir bot de IA', '+ Aggiungi bot IA'],
+      'Spiel starten (mind. 2 Spieler)': ['Start game (at least 2 players)', 'Démarrer (2 joueurs minimum)', 'Iniciar (mínimo 2 jugadores)', 'Avvia (almeno 2 giocatori)'],
+      'Warte darauf, dass der Host das Spiel startet...': ['Waiting for the host to start the game...', 'En attente du démarrage par l’hôte...', 'Esperando a que el anfitrión inicie la partida...', 'In attesa che l’host avvii la partita...'],
+      'Hausregeln & Zug-Popup': ['House rules & move popups', 'Règles maison et fenêtres de coup', 'Reglas de la casa y ventanas de jugada', 'Regole personalizzate e popup mosse'],
+      'Du bist Geber! Wähle deine Starthand:': ['You are the dealer! Choose your starting hand:', 'Vous êtes le donneur ! Choisissez votre main de départ :', '¡Eres quien reparte! Elige tu mano inicial:', 'Sei il mazziere! Scegli la mano iniziale:'],
+      'Behalte diese 3 Karten (dann gehen die anderen 3 offen in die Mitte) oder nimm die anderen 3 unbesehen.': ['Keep these 3 cards (the other 3 are then revealed in the center) or take the other 3 unseen.', 'Gardez ces 3 cartes (les 3 autres seront révélées au centre) ou prenez les 3 autres sans les regarder.', 'Conserva estas 3 cartas (las otras 3 se revelarán en el centro) o toma las otras 3 sin verlas.', 'Tieni queste 3 carte (le altre 3 verranno scoperte al centro) oppure prendi le altre 3 senza guardarle.'],
+      'Diese Hand behalten': ['Keep this hand', 'Garder cette main', 'Conservar esta mano', 'Tieni questa mano'],
+      'Andere 3 Karten nehmen (blind)': ['Take the other 3 cards (unseen)', 'Prendre les 3 autres cartes (à l’aveugle)', 'Tomar las otras 3 cartas (a ciegas)', 'Prendi le altre 3 carte (alla cieca)'],
+      '1. Umlauf: Tauschpflicht! Bitte 1 oder alle 3 Karten tauschen (kein Schieben / Klopfen).': ['First turn: You must swap! Exchange 1 or all 3 cards (no passing or knocking).', 'Premier tour : échange obligatoire ! Échangez 1 ou 3 cartes (sans passer ni frapper).', 'Primer turno: ¡Es obligatorio cambiar! Cambia 1 o las 3 cartas (no se puede pasar ni tocar).', 'Primo turno: scambio obbligatorio! Scambia 1 o tutte e 3 le carte (non si può passare o bussare).'],
+      'Offene Tischmitte': ['Center cards', 'Cartes au centre', 'Cartas del centro', 'Carte al centro'],
+      'Zum Tausch antippen': ['Tap to swap', 'Touchez pour échanger', 'Toca para cambiar', 'Tocca per scambiare'],
+      'Noch kein Zug in dieser Runde.': ['No moves yet this round.', 'Aucun coup pour le moment.', 'Aún no hay jugadas en esta ronda.', 'Nessuna mossa in questo round.'],
+      'Deine Hand': ['Your hand', 'Votre main', 'Tu mano', 'La tua mano'],
+      'Offene Karten': ['Face-up cards', 'Cartes visibles', 'Cartas descubiertas', 'Carte scoperte'],
+      '1 Karte tauschen': ['Swap 1 card', 'Échanger 1 carte', 'Cambiar 1 carta', 'Scambia 1 carta'],
+      'Alle 3 tauschen': ['Swap all 3', 'Échanger les 3', 'Cambiar las 3', 'Scambia tutte e 3'],
+      'Schieben': ['Pass', 'Passer', 'Pasar', 'Passa'],
+      'Klopfen (Knack!)': ['Knock (Knack!)', 'Frapper (Knack !)', 'Tocar (¡Knack!)', 'Bussa (Knack!)'],
+      'AN': ['ON', 'OUI', 'SÍ', 'SÌ'],
+      'AUS': ['OFF', 'NON', 'NO', 'NO'],
+      'Tauschpflicht im 1. Umlauf': ['Must swap on first turn', 'Échange obligatoire au premier tour', 'Cambio obligatorio en el primer turno', 'Scambio obbligatorio al primo turno'],
+      'Im ersten Zug jeder Runde kein Schieben oder Klopfen möglich.': ['On the first turn of each round, passing and knocking are not allowed.', 'Au premier tour de chaque manche, il est interdit de passer ou de frapper.', 'En el primer turno de cada ronda no se puede pasar ni tocar.', 'Al primo turno di ogni round non si può passare né bussare.'],
+      'Zug-Popup Modus': ['Move popup mode', 'Mode des fenêtres de coup', 'Modo de ventana de jugada', 'Modalità popup mossa'],
+      'Auto+Halten pausiert beim Gedrückthalten. Alle bestätigen wartet auf jedes OK.': ['Auto + hold pauses while pressed. Confirm waits for everyone to tap OK.', 'Auto + maintien se met en pause tant que vous appuyez. Confirmation attend le OK de chacun.', 'Auto + mantener pausa al mantener pulsado. Confirmar espera el OK de todos.', 'Auto + pressione si mette in pausa tenendo premuto. Conferma attende l’OK di tutti.'],
+      '„Schwimmen“ (Gnadenrunde)': ['“Swimming” (grace round)', '« Schwimmen » (manche de grâce)', '“Schwimmen” (ronda de gracia)', '“Schwimmen” (round di grazia)'],
+      'Bei Verlust des 3. Lebens schwimmt man bei 0 Leben noch 1 Runde mit.': ['After losing the third life, a player with 0 lives gets one grace round.', 'Après avoir perdu la troisième vie, le joueur à 0 vie joue encore une manche de grâce.', 'Al perder la tercera vida, se juega una ronda de gracia con 0 vidas.', 'Dopo aver perso la terza vita, si gioca ancora un round di grazia con 0 vite.'],
+      '„Feuer / Blitz“ (3 Asse)': ['“Fire / Blitz” (3 aces)', '« Feu / Blitz » (3 as)', '“Fuego / Blitz” (3 ases)', '“Fuoco / Blitz” (3 assi)'],
+      'Drei Asse beenden sofort – alle anderen verlieren 1 Leben.': ['Three aces end the round immediately; everyone else loses 1 life.', 'Trois as terminent immédiatement la manche ; tous les autres perdent 1 vie.', 'Tres ases terminan la ronda de inmediato; los demás pierden 1 vida.', 'Tre assi concludono subito il round; tutti gli altri perdono 1 vita.'],
+      'Klopf-Strafe': ['Knock penalty', 'Pénalité de frappe', 'Penalización por tocar', 'Penalità di bussata'],
+      'Wer klopft und selbst Letzter wird, verliert 2 Leben.': ['A player who knocks and ends up lowest loses 2 lives.', 'Le joueur qui frappe et termine dernier perd 2 vies.', 'Quien toca y queda último pierde 2 vidas.', 'Chi bussa e finisce ultimo perde 2 vite.'],
+      'Deine Hand behalten': ['Keep your hand', 'Garder votre main', 'Conservar tu mano', 'Tieni la tua mano'],
+      'Tauschen': ['Swap', 'Échanger', 'Cambiar', 'Scambia'],
+      'Demo kurz erklärt': ['Quick demo guide', 'Guide rapide de la démo', 'Guía rápida de la demo', 'Guida rapida alla demo'],
+      'KNACK kurz erklärt': ['KNACK explained', 'KNACK expliqué', 'KNACK explicado', 'KNACK spiegato'],
+      'Ziel:': ['Goal:', 'But :', 'Objetivo:', 'Obiettivo:'],
+      'Wertung:': ['Scoring:', 'Score :', 'Puntuación:', 'Punteggio:'],
+      'Im eigenen Zug:': ['On your turn:', 'À votre tour :', 'En tu turno:', 'Nel tuo turno:'],
+      'In dieser Demo:': ['In this demo:', 'Dans cette démo :', 'En esta demo:', 'In questa demo:'],
+      'Zurück zur Lobby': ['Back to lobby', 'Retour au salon', 'Volver a la sala', 'Torna alla lobby'],
+      'Demo starten ▶': ['Start demo ▶', 'Lancer la démo ▶', 'Iniciar demo ▶', 'Avvia demo ▶'],
+      'Demo wirklich beenden?': ['Really end the demo?', 'Voulez-vous vraiment quitter la démo ?', '¿De verdad quieres terminar la demo?', 'Vuoi davvero terminare la demo?'],
+      'Laufendes Spiel wirklich verlassen?': ['Really leave the current game?', 'Voulez-vous vraiment quitter la partie en cours ?', '¿De verdad quieres salir de la partida?', 'Vuoi davvero abbandonare la partita in corso?'],
+      'Offene Tischmitte:': ['Face-up center cards:', 'Cartes visibles au centre :', 'Cartas descubiertas del centro:', 'Carte scoperte al centro:'],
+      'alle 3 Karten': ['all 3 cards', 'les 3 cartes', 'las 3 cartas', 'tutte e 3 le carte'],
+      '1 Karte': ['1 card', '1 carte', '1 carta', '1 carta'],
+      '⬅ Genommen': ['⬅ Taken', '⬅ Prises', '⬅ Tomadas', '⬅ Prese'],
+      'Hand': ['Hand', 'Main', 'Mano', 'Mano'],
+      'In die': ['To the', 'Vers le', 'A la', 'Al'],
+      'Tischmitte': ['center', 'centre', 'centro', 'centro'],
+      'Abgegeben ➔': ['Given ➔', 'Cédées ➔', 'Entregadas ➔', 'Date ➔'],
+      'Genommen': ['Taken', 'Prises', 'Tomadas', 'Prese'],
+      'Aus der': ['From the', 'Depuis le', 'Del', 'Dal'],
+      '3 neue Karten werden vom Stapel aufgedeckt:': ['3 new cards are revealed from the deck:', '3 nouvelles cartes sont révélées depuis la pioche :', 'Se revelan 3 cartas nuevas del mazo:', 'Vengono scoperte 3 nuove carte dal mazzo:'],
+      'Kein Kartentausch in diesem Zug.': ['No card swap this turn.', 'Aucun échange de carte ce tour.', 'No se cambian cartas en este turno.', 'Nessuno scambio di carte in questo turno.'],
+      'KNACK! – Letzte Runde!': ['KNACK! – Final round!', 'KNACK ! – Dernière manche !', '¡KNACK! – ¡Última ronda!', 'KNACK! – Ultimo round!'],
+      'Alle anderen Spieler haben noch genau einen letzten Zug.': ['Every other player gets exactly one final turn.', 'Tous les autres joueurs disposent encore exactement d’un dernier tour.', 'Los demás jugadores tienen exactamente un último turno.', 'Tutti gli altri giocatori hanno esattamente un ultimo turno.'],
+      'Läuft automatisch weiter – gedrückt halten zum Pausieren': ['Continues automatically — hold to pause', 'Continue automatiquement — maintenir pour mettre en pause', 'Continúa automáticamente; mantén pulsado para pausar', 'Prosegue automaticamente — tieni premuto per mettere in pausa'],
+      '▶ Weiter': ['▶ Resume', '▶ Reprendre', '▶ Continuar', '▶ Riprendi'],
+      '⏸ Anhalten': ['⏸ Pause', '⏸ Pause', '⏸ Pausar', '⏸ Pausa'],
+      'Sofort weiter ▶': ['Continue now ▶', 'Continuer maintenant ▶', 'Continuar ahora ▶', 'Continua ora ▶'],
+      'Alle bereit!': ['Everyone ready!', 'Tout le monde est prêt !', '¡Todos listos!', 'Tutti pronti!'],
+      'Zuschauer': ['Spectator', 'Spectateur', 'Espectador', 'Spettatore'],
+      '✓ Bestätigt': ['✓ Confirmed', '✓ Confirmé', '✓ Confirmado', '✓ Confermato'],
+      'OK / Weiter ✓': ['OK / Continue ✓', 'OK / Continuer ✓', 'OK / Continuar ✓', 'OK / Continua ✓'],
+      'Alle fortsetzen ▶': ['Continue all ▶', 'Continuer pour tous ▶', 'Continuar para todos ▶', 'Continua per tutti ▶'],
+      'Live-Protokoll': ['Live game log', 'Journal en direct', 'Registro en vivo', 'Registro live'],
+      'Schließen ✕': ['Close ✕', 'Fermer ✕', 'Cerrar ✕', 'Chiudi ✕'],
+      'Noch keine Einträge.': ['No entries yet.', 'Aucune entrée pour le moment.', 'Aún no hay entradas.', 'Nessuna voce.'],
+      'Spiel beendet!': ['Game over!', 'Partie terminée !', '¡Partida terminada!', 'Partita terminata!'],
+      'Aufdecken!': ['Reveal!', 'Révélation !', '¡Descubrir!', 'Scoperta!'],
+      'DU BIST GEBER!': ['YOU ARE THE DEALER!', 'VOUS ÊTES LE DONNEUR !', '¡ERES QUIEN REPARTE!', 'SEI IL MAZZIERE!'],
+      'DU BIST AM ZUG!': ['YOUR TURN!', 'À VOUS DE JOUER !', '¡TU TURNO!', 'TOCCA A TE!'],
+      'Ausgeschieden': ['Eliminated', 'Éliminé', 'Eliminado', 'Eliminato'],
+      '🌊 SCHWIMMT!': ['🌊 SWIMMING!', '🌊 ENCORE EN JEU !', '🌊 ¡SIGUE EN JUEGO!', '🌊 ANCORA IN GIOCO!'],
+      'Raus': ['Out', 'Éliminé', 'Fuera', 'Fuori'],
+      'AUSGESCHIEDEN': ['ELIMINATED', 'ÉLIMINÉ', 'ELIMINADO', 'ELIMINATO'],
+      'Leben verloren:': ['Lives lost:', 'Vies perdues :', 'Vidas perdidas:', 'Vite perse:'],
+      'Regelerklärung:': ['Rules:', 'Règles :', 'Reglas:', 'Regole:'],
+      'Du bist ausgeschieden und schaust zu.': ['You are eliminated and watching.', 'Vous êtes éliminé et regardez la partie.', 'Has sido eliminado y estás mirando.', 'Sei stato eliminato e stai guardando.'],
+      'Geber': ['Dealer', 'Donneur', 'Repartidor', 'Mazziere'],
+      'hat die Mitte ausgelegt.': ['revealed the center cards.', 'a révélé les cartes au centre.', 'reveló las cartas del centro.', 'ha scoperto le carte al centro.'],
+      'hat geschoben.': ['passed.', 'a passé.', 'pasó.', 'ha passato.'],
+      'schiebt – neue Tischmitte:': ['passes — new center cards:', 'passe — nouvelles cartes au centre :', 'pasa: nuevas cartas del centro:', 'passa — nuove carte al centro:'],
+      'abgegeben': ['given', 'données', 'entregadas', 'date'],
+      'genommen': ['taken', 'prises', 'tomadas', 'prese'],
+      'Geber Bot': ['Dealer Bot', 'Bot donneur', 'Bot repartidor', 'Bot mazziere'],
+      'Alle haben geschoben – 3 neue Karten in der Tischmitte!': ['Everyone passed — 3 new cards in the center!', 'Tout le monde a passé — 3 nouvelles cartes au centre !', 'Todos pasaron: ¡3 cartas nuevas en el centro!', 'Tutti hanno passato — 3 nuove carte al centro!'],
+      'Verlust:': ['Loss:', 'Perte :', 'Pérdida:', 'Perdita:'],
+      'Rundenende – Aufdecken!': ['Round over — reveal!', 'Fin de manche — révélation !', 'Fin de ronda: ¡a descubrir!', 'Fine round — scoperta!'],
+      'Aufdecken!': ['Reveal!', 'Révélation !', '¡Descubrir!', 'Scoperta!'],
+      '31 Punkte in einer Farbe sind Knack und beenden die Runde sofort. Danach wird die niedrigste Hand ermittelt.': ['31 points in one suit is Knack and ends the round immediately. The lowest hand is then determined.', '31 points dans une couleur forment Knack et terminent immédiatement la manche. La main la plus faible est ensuite déterminée.', '31 puntos de un mismo palo es Knack y termina la ronda de inmediato. Después se determina la mano más baja.', '31 punti dello stesso seme sono Knack e terminano subito il round. Poi si determina la mano più bassa.'],
+      'Drei Asse bilden Feuer. Bei aktivierter Feuer-Regel endet die Runde sofort; alle anderen aktiven Spieler verlieren ein Leben.': ['Three aces make Fire. When the Fire rule is enabled, the round ends immediately and all other active players lose one life.', 'Trois as forment Feu. Si la règle Feu est activée, la manche s’arrête immédiatement et tous les autres joueurs actifs perdent une vie.', 'Tres ases forman Fuego. Si la regla está activada, la ronda termina de inmediato y los demás jugadores activos pierden una vida.', 'Tre assi formano Fuoco. Se la regola Fuoco è attiva, il round termina subito e tutti gli altri giocatori attivi perdono una vita.'],
+      'Alle aktiven Spieler haben dieselbe Wertung. Bei diesem Gleichstand verliert niemand ein Leben.': ['All active players have the same score. No one loses a life in a tie.', 'Tous les joueurs actifs ont le même score. En cas d’égalité, personne ne perd de vie.', 'Todos los jugadores activos tienen la misma puntuación. En caso de empate, nadie pierde una vida.', 'Tutti i giocatori attivi hanno lo stesso punteggio. In caso di parità nessuno perde una vita.'],
+      'Der Klopfer verliert bei aktivierter Klopf-Strafe zwei Leben.': ['The player who knocked loses two lives when the knock penalty is enabled.', 'Le joueur qui a frappé perd deux vies si la pénalité est activée.', 'Quien tocó pierde dos vidas si la penalización está activada.', 'Chi ha bussato perde due vite se la penalità è attiva.'],
+      'Hand von': ['Hand of', 'Main de', 'Mano de', 'Mano di'],
+      'Bereit:': ['Ready:', 'Prêt :', 'Listo:', 'Pronto:'],
+      'Handkarte': ['Hand card', 'Carte en main', 'Carta de la mano', 'Carta in mano'],
+      'gewählt – jetzt links 1 Karte in der Mitte antippen!': ['selected — now tap a center card on the left!', 'sélectionnée — touchez une carte au centre à gauche !', 'seleccionada: toca una carta del centro a la izquierda.', 'selezionata — ora tocca una carta al centro a sinistra!'],
+      'gewählt – jetzt 1 eigene Handkarte antippen!': ['selected — now tap one of your hand cards!', 'sélectionnée — touchez maintenant une carte de votre main !', 'seleccionada: toca ahora una carta de tu mano.', 'selezionata — ora tocca una carta della tua mano!'],
+      'Für 1er-Tausch: 1 Handkarte + 1 Karte aus der Mitte antippen': ['For a 1-card swap: tap 1 hand card + 1 center card', 'Pour échanger 1 carte : touchez 1 carte en main + 1 carte au centre', 'Para cambiar 1 carta: toca 1 carta de tu mano + 1 del centro', 'Per uno scambio singolo: tocca 1 carta in mano + 1 al centro'],
+      'Gewählt:': ['Selected:', 'Sélectionnée :', 'Seleccionada:', 'Selezionata:'],
+      '1 Karte zum Tausch antippen': ['Tap 1 card to swap', 'Touchez 1 carte à échanger', 'Toca 1 carta para cambiar', 'Tocca 1 carta da scambiare'],
+      'Hand wählen': ['Choose hand card', 'Choisir une carte en main', 'Elegir carta de la mano', 'Scegli carta in mano'],
+      'Mitte wählen': ['Choose center card', 'Choisir une carte au centre', 'Elegir carta del centro', 'Scegli carta al centro'],
+      'Entfernen': ['Remove', 'Retirer', 'Eliminar', 'Rimuovi'],
+      '(Du)': ['(You)', '(Vous)', '(Tú)', '(Tu)'],
+      'Rundenende – Aufdecken!': ['Round over — reveal!', 'Fin de manche — révélation !', 'Fin de ronda: ¡a descubrir!', 'Fine round — scoperta!'],
+      'Aufdecken!': ['Reveal!', 'Révélation !', '¡Descubrir!', 'Scoperta!'],
+      'Siegerehrung': ['Awards', 'Podium', 'Premiación', 'Premiazione'],
+      'Spielende': ['Game over', 'Fin de partie', 'Fin de la partida', 'Fine partita'],
+      '🏆 Spielende': ['🏆 Game over', '🏆 Fin de partie', '🏆 Fin de la partida', '🏆 Fine partita'],
+      '2. Platz': ['2nd place', '2e place', '2.º puesto', '2º posto'],
+      '1. Platz (Sieger!)': ['1st place (Winner!)', '1re place (gagnant !)', '1.º puesto (¡ganador!)', '1º posto (vincitore!)'],
+      '3. Platz': ['3rd place', '3e place', '3.er puesto', '3º posto'],
+      'Demo abgeschlossen': ['Demo complete', 'Démo terminée', 'Demo completada', 'Demo completata'],
+      'Du kannst das Erklärspiel erneut starten oder zum Startbildschirm zurückkehren.': ['You can restart the tutorial game or return to the start screen.', 'Vous pouvez relancer la partie explicative ou revenir à l’écran d’accueil.', 'Puedes reiniciar la partida explicativa o volver a la pantalla de inicio.', 'Puoi riavviare la partita tutorial o tornare alla schermata iniziale.'],
+      'Demo erneut starten': ['Restart demo', 'Relancer la démo', 'Reiniciar demo', 'Riavvia demo'],
+      'Demo beenden': ['End demo', 'Terminer la démo', 'Terminar demo', 'Termina demo'],
+      'Wie soll es weitergehen?': ['What would you like to do next?', 'Que souhaitez-vous faire ensuite ?', '¿Qué quieres hacer ahora?', 'Come vuoi proseguire?'],
+      'Direkt neues Spiel starten': ['Start a new game', 'Démarrer une nouvelle partie', 'Iniciar una nueva partida', 'Avvia una nuova partita'],
+      'Zurück zur Lobby (Regeln ändern)': ['Back to lobby (change rules)', 'Retour au salon (modifier les règles)', 'Volver a la sala (cambiar reglas)', 'Torna alla lobby (modifica regole)'],
+      'Oder als normaler Spieler weiterspielen (Host-Rolle abgeben):': ['Or continue as a regular player (hand over host role):', 'Ou continuer comme joueur (céder le rôle d’hôte) :', 'O continuar como jugador (ceder el rol de anfitrión):', 'Oppure continua come giocatore (cedi il ruolo di host):'],
+      'Keine weiteren menschlichen Mitspieler verbunden.': ['No other human players are connected.', 'Aucun autre joueur humain n’est connecté.', 'No hay otros jugadores conectados.', 'Nessun altro giocatore umano è connesso.'],
+      'Nächstes Spiel selbst hosten?': ['Host the next game?', 'Héberger la prochaine partie ?', '¿Quieres ser anfitrión de la próxima partida?', 'Vuoi ospitare la prossima partita?'],
+      'Jeder Spieler kann jetzt die Host-Rolle übernehmen – alle Mitspieler wechseln automatisch mit in den neuen Raum.': ['Any player can now take over as host; all players automatically move to the new room.', 'Chaque joueur peut reprendre le rôle d’hôte ; tous les joueurs rejoignent automatiquement la nouvelle salle.', 'Cualquier jugador puede asumir el rol de anfitrión; todos pasarán automáticamente a la nueva sala.', 'Ogni giocatore può diventare host; tutti passeranno automaticamente nella nuova stanza.'],
+      '👑 Host für nächstes Spiel werden': ['👑 Host the next game', '👑 Héberger la prochaine partie', '👑 Ser anfitrión de la próxima partida', '👑 Ospita la prossima partita'],
+      'behalten': ['keep', 'garder', 'conservar', 'tenere'],
+      'Tischmitte:': ['center:', 'centre :', 'centro:', 'centro:'],
+      'genommen': ['taken', 'prises', 'tomadas', 'prese']
+    };
+
+    const LANGUAGE_INDEX = { de: 0, en: 1, fr: 2, es: 3, it: 4 };
+    const SUPPORTED_LANGUAGES = Object.keys(LANGUAGE_INDEX);
+    const textNodeSources = new WeakMap();
+    const attributeSources = new WeakMap();
+    let currentLanguage = 'de';
+
+    function translateDynamicText(source, language) {
+      const index = LANGUAGE_INDEX[language] - 1;
+      let match;
+      if ((match = source.match(/^Runde (\d+)$/))) {
+        return [`Round ${match[1]}`, `Manche ${match[1]}`, `Ronda ${match[1]}`, `Round ${match[1]}`][index];
+      }
+      if ((match = source.match(/^--- Runde (\d+) \| Geber: (.+) ---$/))) {
+        return [`--- Round ${match[1]} | Dealer: ${match[2]} ---`, `--- Manche ${match[1]} | Donneur : ${match[2]} ---`, `--- Ronda ${match[1]} | Reparte: ${match[2]} ---`, `--- Round ${match[1]} | Mazziere: ${match[2]} ---`][index];
+      }
+      if ((match = source.match(/^Leben: (\d+)(?: \/ 3)?$/))) {
+        return [`Lives: ${match[1]}${source.includes(' / 3') ? ' / 3' : ''}`, `Vies : ${match[1]}${source.includes(' / 3') ? ' / 3' : ''}`, `Vidas: ${match[1]}${source.includes(' / 3') ? ' / 3' : ''}`, `Vite: ${match[1]}${source.includes(' / 3') ? ' / 3' : ''}`][index];
+      }
+      if ((match = source.match(/^Hand von (.+)$/))) {
+        return [`Hand of ${match[1]}`, `Main de ${match[1]}`, `Mano de ${match[1]}`, `Mano di ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Spiel starten \((\d+) Spieler\)$/))) {
+        return [`Start game (${match[1]} players)`, `Démarrer (${match[1]} joueurs)`, `Iniciar (${match[1]} jugadores)`, `Avvia (${match[1]} giocatori)`][index];
+      }
+      if ((match = source.match(/^(.+) \(Du\)$/))) {
+        return [`${match[1]} (You)`, `${match[1]} (Vous)`, `${match[1]} (Tú)`, `${match[1]} (Tu)`][index];
+      }
+      if ((match = source.match(/^(\d+)\. Platz$/))) {
+        const place = Number(match[1]);
+        const suffixes = [['th', 'st', 'nd', 'rd'], ['e', 're', 'e', 'e'], ['.º', '.º', '.º', '.º'], ['º', 'º', 'º', 'º']];
+        const suffixSet = suffixes[index];
+        let suffix = suffixSet[0];
+        if (index === 0) {
+          const mod100 = place % 100;
+          if (mod100 < 11 || mod100 > 13) suffix = suffixSet[place % 10] || suffixSet[0];
+        }
+        return [`${place}${suffix} place`, `${place}${suffix} place`, `${place}${suffix} puesto`, `${place}${suffix} posto`][index];
+      }
+      if ((match = source.match(/^👑 Host abgeben an (.+)$/))) {
+        return [`👑 Hand host role to ${match[1]}`, `👑 Céder le rôle d’hôte à ${match[1]}`, `👑 Ceder el rol de anfitrión a ${match[1]}`, `👑 Cedi il ruolo host a ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Am Zug: (.+)$/))) {
+        return [`Turn: ${match[1]}`, `Au tour de : ${match[1]}`, `Turno de: ${match[1]}`, `Di turno: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^(.+) tauscht (alle 3 Karten|1 Karte)$/))) {
+        const amount = match[2] === 'alle 3 Karten'
+          ? ['all 3 cards', 'les 3 cartes', 'las 3 cartas', 'tutte e 3 le carte'][index]
+          : ['1 card', '1 carte', '1 carta', '1 carta'][index];
+        return [`${match[1]} swaps ${amount}`, `${match[1]} échange ${amount}`, `${match[1]} cambia ${amount}`, `${match[1]} scambia ${amount}`][index];
+      }
+      if ((match = source.match(/^Popup: (.+)$/))) {
+        const mode = translateDynamicText(match[1], language);
+        return [`Popup: ${mode}`, `Popup : ${mode}`, `Ventana: ${mode}`, `Popup: ${mode}`][index];
+      }
+      if (source === 'Auto + Halten' || source === 'Alle bestätigen' || source === 'Aus') {
+        const modes = {
+          'Auto + Halten': ['Auto + Hold', 'Auto + maintien', 'Auto + mantener', 'Auto + tieni premuto'],
+          'Alle bestätigen': ['Everyone confirms', 'Confirmation de tous', 'Todos confirman', 'Conferma di tutti'],
+          'Aus': ['Off', 'Désactivé', 'Desactivado', 'Disattivato']
+        };
+        return modes[source][index];
+      }
+      if ((match = source.match(/^🔔 (.+) hat geklopft!$/))) {
+        return [`🔔 ${match[1]} knocked!`, `🔔 ${match[1]} a frappé !`, `🔔 ¡${match[1]} ha tocado!`, `🔔 ${match[1]} ha bussato!`][index];
+      }
+      if ((match = source.match(/^🔔 (.+) hat geklopft! Letzte Runde!$/))) {
+        return [`🔔 ${match[1]} knocked! Final round!`, `🔔 ${match[1]} a frappé ! Dernière manche !`, `🔔 ¡${match[1]} ha tocado! ¡Última ronda!`, `🔔 ${match[1]} ha bussato! Ultimo round!`][index];
+      }
+      if ((match = source.match(/^🔥 FEUER! (.+) hat 3 Asse! Alle anderen verlieren 1 Leben!$/))) {
+        return [`🔥 FIRE! ${match[1]} has 3 aces! Everyone else loses 1 life!`, `🔥 FEU ! ${match[1]} a 3 as ! Tous les autres perdent 1 vie !`, `🔥 ¡FUEGO! ¡${match[1]} tiene 3 ases! Los demás pierden 1 vida.`, `🔥 FUOCO! ${match[1]} ha 3 assi! Tutti gli altri perdono 1 vita!`][index];
+      }
+      if ((match = source.match(/^⚡ KNACK! (.+) erreicht 31 Punkte!$/))) {
+        return [`⚡ KNACK! ${match[1]} reaches 31 points!`, `⚡ KNACK ! ${match[1]} atteint 31 points !`, `⚡ ¡KNACK! ¡${match[1]} alcanza 31 puntos!`, `⚡ KNACK! ${match[1]} raggiunge 31 punti!`][index];
+      }
+      if ((match = source.match(/^🔔 Nach Klopfen von (.+) wird aufgedeckt!$/))) {
+        return [`🔔 Reveal after ${match[1]} knocked!`, `🔔 Révélation après le coup de ${match[1]} !`, `🔔 ¡Se revelan las cartas tras el toque de ${match[1]}!`, `🔔 Scoperta dopo la bussata di ${match[1]}!`][index];
+      }
+      if ((match = source.match(/^Spiel starten \((mind\. 2 Spieler|\d+ Spieler)\)$/))) {
+        return translateDynamicText(match[1] === 'mind. 2 Spieler' ? 'Spiel starten (mind. 2 Spieler)' : `Spiel starten (${match[1].replace(' Spieler', '')} Spieler)`, language);
+      }
+      if ((match = source.match(/^Tauschen: (.+)$/))) {
+        return [`Swap: ${match[1]}`, `Échanger : ${match[1]}`, `Cambiar: ${match[1]}`, `Scambia: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Mitte wählen \((.+)\)$/))) {
+        return [`Choose center (${match[1]})`, `Choisir au centre (${match[1]})`, `Elegir del centro (${match[1]})`, `Scegli dal centro (${match[1]})`][index];
+      }
+      if ((match = source.match(/^Hand wählen \((.+)\)$/))) {
+        return [`Choose hand (${match[1]})`, `Choisir en main (${match[1]})`, `Elegir de la mano (${match[1]})`, `Scegli dalla mano (${match[1]})`][index];
+      }
+      if ((match = source.match(/^⏸ Pausiert von (.+) \(loslassen \/ tippen zum Fortsetzen\)$/))) {
+        return [`⏸ Paused by ${match[1]} (release / tap to resume)`, `⏸ En pause par ${match[1]} (relâcher / toucher pour reprendre)`, `⏸ En pausa por ${match[1]} (suelta / toca para continuar)`, `⏸ In pausa da ${match[1]} (rilascia / tocca per riprendere)`][index];
+      }
+      if ((match = source.match(/^PeerJS-Fehler: (.+)$/))) {
+        return [`PeerJS error: ${match[1]}`, `Erreur PeerJS : ${match[1]}`, `Error de PeerJS: ${match[1]}`, `Errore PeerJS: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Neuer Host: (.+) – wechsle Raum\.\.\.$/))) {
+        return [`New host: ${match[1]} — switching rooms...`, `Nouvel hôte : ${match[1]} — changement de salle...`, `Nuevo anfitrión: ${match[1]} — cambiando de sala...`, `Nuovo host: ${match[1]} — cambio stanza...`][index];
+      }
+      if ((match = source.match(/^Du bist jetzt Host \((.+)\)!$/))) {
+        return [`You are now the host (${match[1]})!`, `Vous êtes maintenant l’hôte (${match[1]}) !`, `¡Ahora eres el anfitrión (${match[1]})!`, `Ora sei l’host (${match[1]})!`][index];
+      }
+      if ((match = source.match(/^Fehler beim Host-Wechsel: (.+)$/))) {
+        return [`Host handover error: ${match[1]}`, `Erreur lors du changement d’hôte : ${match[1]}`, `Error al cambiar de anfitrión: ${match[1]}`, `Errore durante il cambio host: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Wechsle zu neuem Host \((.+)\)\.\.\.$/))) {
+        return [`Switching to new host (${match[1]})...`, `Passage au nouvel hôte (${match[1]})...`, `Cambiando al nuevo anfitrión (${match[1]})...`, `Passaggio al nuovo host (${match[1]})...`][index];
+      }
+      if (source === 'Bereit! Alle Mitspieler verbinden sich automatisch...') {
+        return ['Ready! All players will reconnect automatically...', 'Prêt ! Tous les joueurs vont se reconnecter automatiquement...', '¡Listo! Todos se reconectarán automáticamente...', 'Pronto! Tutti si riconnetteranno automaticamente...'][index];
+      }
+      if ((match = source.match(/^Warte auf OK von: (.+)$/))) {
+        return [`Waiting for OK from: ${match[1]}`, `En attente du OK de : ${match[1]}`, `Esperando el OK de: ${match[1]}`, `In attesa dell’OK di: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Leben verloren: (.+)$/))) {
+        return [`Lives lost: ${match[1]}`, `Vies perdues : ${match[1]}`, `Vidas perdidas: ${match[1]}`, `Vite perse: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Verbindungsfehler: (.+)$/))) {
+        return [`Connection error: ${match[1]}`, `Erreur de connexion : ${match[1]}`, `Error de conexión: ${match[1]}`, `Errore di connessione: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^Skript-Fehler: (.+)$/))) {
+        return [`Script error: ${match[1]}`, `Erreur de script : ${match[1]}`, `Error de script: ${match[1]}`, `Errore dello script: ${match[1]}`][index];
+      }
+      if ((match = source.match(/^(\d+(?:[,.]\d+)?) Pkt\.(?: \(([^)]+)\))?$/))) {
+        const score = match[1].replace(',', '.');
+        const suit = match[2] ? ` (${match[2]})` : '';
+        return [`${score} pts${suit}`, `${score} pts${suit}`, `${score} pts${suit}`, `${score} pt${suit}`][index];
+      }
+      if ((match = source.match(/^(\d+(?:[,.]\d+)?) Punkte$/))) {
+        return [`${match[1]} points`, `${match[1]} points`, `${match[1]} puntos`, `${match[1]} punti`][index];
+      }
+      if ((match = source.match(/^Drilling \((.+)\)$/))) {
+        return [`Three of a kind (${match[1]})`, `Brelan (${match[1]})`, `Trío (${match[1]})`, `Tris (${match[1]})`][index];
+      }
+      if (source === 'KNACK! (31 Punkte)') return ['KNACK! (31 points)', 'KNACK ! (31 points)', '¡KNACK! (31 puntos)', 'KNACK! (31 punti)'][index];
+      if (source === 'FEUER! (3 Asse)') return ['FIRE! (3 aces)', 'FEU ! (3 as)', '¡FUEGO! (3 ases)', 'FUOCO! (3 assi)'][index];
+      if (source === 'Drilling (30,5 Punkte)') return ['Three of a kind (30.5 points)', 'Brelan (30,5 points)', 'Trío (30,5 puntos)', 'Tris (30,5 punti)'][index];
+      if ((match = source.match(/^Geber (.+) eröffnet die Runde$/))) {
+        return [`Dealer ${match[1]} starts the round`, `Le donneur ${match[1]} ouvre la manche`, `${match[1]} reparte y abre la ronda`, `Il mazziere ${match[1]} apre il round`][index];
+      }
+      if ((match = source.match(/^Geber (.+) hat die Mitte ausgelegt\.$/))) {
+        return [`Dealer ${match[1]} revealed the center cards.`, `Le donneur ${match[1]} a révélé les cartes au centre.`, `${match[1]} repartió las cartas del centro.`, `Il mazziere ${match[1]} ha scoperto le carte al centro.`][index];
+      }
+      if ((match = source.match(/^(.+) tauscht alle 3 Karten\.$/))) {
+        return [`${match[1]} swaps all 3 cards.`, `${match[1]} échange les 3 cartes.`, `${match[1]} cambia las 3 cartas.`, `${match[1]} scambia tutte e 3 le carte.`][index];
+      }
+      if ((match = source.match(/^(.+) tauscht (.+) gegen (.+)\.$/))) {
+        return [`${match[1]} swaps ${match[2]} for ${match[3]}.`, `${match[1]} échange ${match[2]} contre ${match[3]}.`, `${match[1]} cambia ${match[2]} por ${match[3]}.`, `${match[1]} scambia ${match[2]} con ${match[3]}.`][index];
+      }
+      if ((match = source.match(/^(.+) schiebt\.$/))) {
+        return [`${match[1]} passes.`, `${match[1]} passe.`, `${match[1]} pasa.`, `${match[1]} passa.`][index];
+      }
+      if ((match = source.match(/^(.+) behält seine Hand und legt die Mitte offen\.$/))) {
+        return [`${match[1]} keeps their hand and reveals the center cards.`, `${match[1]} garde sa main et révèle les cartes au centre.`, `${match[1]} conserva su mano y revela las cartas del centro.`, `${match[1]} tiene la propria mano e scopre le carte al centro.`][index];
+      }
+      if ((match = source.match(/^(.+) tauscht seine Hand blind gegen die Reserve\.$/))) {
+        return [`${match[1]} blindly swaps their hand for the reserve.`, `${match[1]} échange sa main à l’aveugle contre la réserve.`, `${match[1]} cambia su mano a ciegas por la reserva.`, `${match[1]} scambia alla cieca la propria mano con la riserva.`][index];
+      }
+      if ((match = source.match(/^(.+) hat die Verbindung verloren\.$/))) {
+        return [`${match[1]} disconnected.`, `${match[1]} a perdu la connexion.`, `${match[1]} perdió la conexión.`, `${match[1]} ha perso la connessione.`][index];
+      }
+      if ((match = source.match(/^(.+) ist wieder verbunden\.$/))) {
+        return [`${match[1]} reconnected.`, `${match[1]} est de nouveau connecté.`, `${match[1]} se ha reconectado.`, `${match[1]} si è riconnesso.`][index];
+      }
+      if ((match = source.match(/^Die Hand des Gebers zählt (.+)\. Die Demo-Strategie behält Hände ab 20 Punkten und deckt die Reserve als Tischmitte auf\.$/))) {
+        const score = translateDynamicText(match[1], language);
+        return [
+          `The dealer's hand scores ${score}. The demo strategy keeps hands scoring 20 or more and reveals the reserve as the center cards.`,
+          `La main du donneur vaut ${score}. La stratégie de la démo garde les mains à partir de 20 points et révèle la réserve au centre.`,
+          `La mano de quien reparte vale ${score}. La estrategia conserva manos de 20 puntos o más y revela la reserva en el centro.`,
+          `La mano del mazziere vale ${score}. La strategia tiene le mani da 20 punti in su e scopre la riserva al centro.`
+        ][index];
+      }
+      if ((match = source.match(/^Die Hand des Gebers zählt (.+)\. Da sie unter 20 Punkten liegt, tauscht der Bot sie blind gegen die Reserve; die bisherige Hand wird zur Tischmitte\.$/))) {
+        const score = translateDynamicText(match[1], language);
+        return [
+          `The dealer's hand scores ${score}. Since it is below 20 points, the bot swaps it blindly for the reserve; the original hand becomes the center cards.`,
+          `La main du donneur vaut ${score}. Comme elle est inférieure à 20 points, le bot l’échange à l’aveugle contre la réserve ; la main initiale devient les cartes du centre.`,
+          `La mano de quien reparte vale ${score}. Como no llega a 20 puntos, el bot la cambia a ciegas por la reserva; la mano anterior pasa al centro.`,
+          `La mano del mazziere vale ${score}. Poiché è sotto i 20 punti, il bot la scambia alla cieca con la riserva; la mano precedente diventa il centro.`
+        ][index];
+      }
+      if ((match = source.match(/^Die drei Karten der Tischmitte (verbessern|lassen|senken) die Wertung(?: von (.+) auf (.+)| bei (.+))\.$/))) {
+        const terms = {
+          verbessern: ['improve the score from', 'améliorent le score de', 'mejoran la puntuación de', 'migliorano il punteggio da'],
+          lassen: ['leave the score at', 'laissent le score à', 'mantienen la puntuación en', 'lasciano il punteggio a'],
+          senken: ['lower the score from', 'abaissent le score de', 'reducen la puntuación de', 'abbassano il punteggio da']
+        };
+        const action = terms[match[1]][index];
+        if (match[4]) return [`The three center cards ${action} ${match[4]}.`, `Les trois cartes du centre ${action} ${match[4]}.`, `Las tres cartas del centro ${action} ${match[4]}.`, `Le tre carte al centro ${action} ${match[4]}.`][index];
+        return [`The three center cards ${action} ${match[2]} to ${match[3]}.`, `Les trois cartes du centre ${action} ${match[2]} à ${match[3]}.`, `Las tres cartas del centro ${action} ${match[2]} a ${match[3]}.`, `Le tre carte al centro ${action} ${match[2]} a ${match[3]}.`][index];
+      }
+      if ((match = source.match(/^Der Tausch (.+) gegen (.+) (verbessert die Wertung von|lässt die Wertung bei|senkt die Wertung von) (.+?)(?: auf (.+?))?(, ist wegen der Tauschpflicht aber nötig)?\.$/))) {
+        const action = {
+          'verbessert die Wertung von': ['improves the score from', 'améliore le score de', 'mejora la puntuación de', 'migliora il punteggio da'],
+          'lässt die Wertung bei': ['leaves the score at', 'laisse le score à', 'mantiene la puntuación en', 'lascia il punteggio a'],
+          'senkt die Wertung von': ['lowers the score from', 'baisse le score de', 'reduce la puntuación de', 'abbassa il punteggio da']
+        }[match[3]][index];
+        const currentScore = translateDynamicText(match[4], language);
+        const nextScore = match[5] ? translateDynamicText(match[5], language) : '';
+        const toWord = ['to', 'à', 'a', 'a'][index];
+        const suffix = match[6] ? [
+          ', but is required by the must-swap rule', ', mais est obligatoire selon la règle d’échange',
+          ', pero es obligatorio por la regla de cambio', ', ma è obbligatorio per la regola dello scambio'
+        ][index] : '';
+        const change = match[5] ? `${action} ${currentScore} ${toWord} ${nextScore}` : `${action} ${currentScore}`;
+        return [
+          `Swapping ${match[1]} for ${match[2]} ${change}${suffix}.`,
+          `Échanger ${match[1]} contre ${match[2]} ${change}${suffix}.`,
+          `Cambiar ${match[1]} por ${match[2]} ${change}${suffix}.`,
+          `Scambiare ${match[1]} con ${match[2]} ${change}${suffix}.`
+        ][index];
+      }
+      if ((match = source.match(/^Mit (.+) klopft der Bot nach seiner einfachen Strategie ab 27 Punkten\. Danach erhalten alle anderen aktiven Spieler noch genau einen Zug\.$/))) {
+        return [`With ${match[1]}, the bot knocks at 27 points or higher. Every other active player then gets exactly one more turn.`, `Avec ${match[1]}, le bot frappe à partir de 27 points. Tous les autres joueurs actifs jouent ensuite encore une fois.`, `Con ${match[1]}, el bot toca a partir de 27 puntos. Los demás jugadores activos tienen exactamente un turno más.`, `Con ${match[1]}, il bot bussa da 27 punti. Tutti gli altri giocatori attivi hanno poi un ultimo turno.`][index];
+      }
+      if ((match = source.match(/^Kein möglicher Tausch verbessert die aktuelle Hand mit (.+)\. Der Bot schiebt und behält seine Karten\.$/))) {
+        return [`No possible swap improves the current hand at ${match[1]}. The bot passes and keeps its cards.`, `Aucun échange possible n’améliore la main actuelle à ${match[1]}. Le bot passe et garde ses cartes.`, `Ningún cambio mejora la mano actual de ${match[1]}. El bot pasa y conserva sus cartas.`, `Nessuno scambio migliora la mano attuale da ${match[1]}. Il bot passa e tiene le carte.`][index];
+      }
+      if ((match = source.match(/^(.+) behält seine Karten – das ist die offene Mitte:$/))) {
+        return [`${match[1]} keeps these cards — they become the face-up center cards:`, `${match[1]} garde ces cartes — elles deviennent les cartes visibles au centre :`, `${match[1]} conserva estas cartas, que quedan descubiertas en el centro:`, `${match[1]} tiene queste carte: diventano quelle scoperte al centro:`][index];
+      }
+      if ((match = source.match(/^(.+) nimmt die Reserve – diese Karten legt er ab:$/))) {
+        return [`${match[1]} takes the reserve — these cards are discarded:`, `${match[1]} prend la réserve — ces cartes sont défaussées :`, `${match[1]} toma la reserva y descarta estas cartas:`, `${match[1]} prende la riserva — queste carte vengono scartate:`][index];
+      }
+      if ((match = source.match(/^Die niedrigste Wertung von (.+) Punkten verlieren (.+)\. Die übrigen Spieler behalten ihre Leben\.$/))) {
+        return [`${match[2]} lose one life with the lowest score of ${match[1]} points. The other players keep their lives.`, `${match[2]} perdent une vie avec le score le plus bas de ${match[1]} points. Les autres gardent leurs vies.`, `${match[2]} pierden una vida con la puntuación más baja de ${match[1]} puntos. Los demás conservan sus vidas.`, `${match[2]} perdono una vita con il punteggio più basso di ${match[1]} punti. Gli altri mantengono le proprie vite.`][index];
+      }
+      if ((match = source.match(/^(.+) haben mit (\d+(?:[,.]\d+)?) Punkten die niedrigste Wertung und verlieren ein Leben\.(.*) Die übrigen Spieler behalten ihre Leben\.$/))) {
+        const penalty = match[3] ? [
+          ' The knocker loses two lives if the knock penalty is enabled.',
+          ' Le joueur qui a frappé perd deux vies si la pénalité est activée.',
+          ' Quien tocó pierde dos vidas si la penalización está activada.',
+          ' Chi ha bussato perde due vite se la penalità è attiva.'
+        ][index] : '';
+        return [
+          `${match[1]} have the lowest score with ${match[2]} points and lose one life.${penalty} The other players keep their lives.`,
+          `${match[1]} ont le score le plus bas avec ${match[2]} points et perdent une vie.${penalty} Les autres joueurs gardent leurs vies.`,
+          `${match[1]} tienen la puntuación más baja con ${match[2]} puntos y pierden una vida.${penalty} Los demás conservan sus vidas.`,
+          `${match[1]} hanno il punteggio più basso con ${match[2]} punti e perdono una vita.${penalty} Gli altri mantengono le proprie vite.`
+        ][index];
+      }
+      if (source.endsWith(' – Gleichstand bei allen! Niemand verliert ein Leben.')) {
+        const headline = source.slice(0, -' – Gleichstand bei allen! Niemand verliert ein Leben.'.length);
+        const tieText = [
+          ' — Everyone is tied! No one loses a life.',
+          ' — Tout le monde est à égalité ! Personne ne perd de vie.',
+          ' — ¡Empate entre todos! Nadie pierde una vida.',
+          ' — Tutti sono in parità! Nessuno perde una vita.'
+        ][index];
+        return translateDynamicText(headline, language) + tieText;
+      }
+      if (source.includes(' Verlust: ')) {
+        const splitAt = source.indexOf(' Verlust: ');
+        const headline = translateDynamicText(source.slice(0, splitAt), language);
+        const losses = source.slice(splitAt + ' Verlust: '.length).replace(/\.$/, '').replace(/ \(-2 Strafe!\)/g, [
+          ' (-2 penalty!)', ' (-2 de pénalité !)', ' (-2 de penalización)', ' (-2 di penalità)'
+        ][index]);
+        const prefix = [' Loss: ', ' Perte : ', ' Pérdida: ', ' Perdita: '][index];
+        return `${headline}${prefix}${losses}.`;
+      }
+      return source;
+    }
+
+    function translateText(source, language) {
+      if (language === 'de') return source;
+      if (Object.prototype.hasOwnProperty.call(LANGUAGE_TEXTS, source)) {
+        return LANGUAGE_TEXTS[source][LANGUAGE_INDEX[language] - 1];
+      }
+      return translateDynamicText(source, language);
+    }
+
+    function localizeTextNode(node) {
+      const current = node.nodeValue;
+      if (!current.trim()) return;
+      const leading = (current.match(/^\s*/) || [''])[0];
+      const trailing = (current.match(/\s*$/) || [''])[0];
+      const content = current.slice(leading.length, current.length - trailing.length);
+      let state = textNodeSources.get(node);
+      if (!state || current !== state.output) {
+        state = { source: content, leading, trailing, output: current };
+      }
+      const output = state.leading + translateText(state.source, currentLanguage) + state.trailing;
+      state.output = output;
+      textNodeSources.set(node, state);
+      if (node.nodeValue !== output) node.nodeValue = output;
+    }
+
+    function localizeAttributes(element) {
+      ['placeholder', 'title', 'aria-label'].forEach(name => {
+        if (!element.hasAttribute(name)) return;
+        const value = element.getAttribute(name);
+        let states = attributeSources.get(element);
+        if (!states) {
+          states = {};
+          attributeSources.set(element, states);
+        }
+        let state = states[name];
+        if (!state || value !== state.output) state = { source: value, output: value };
+        const output = translateText(state.source, currentLanguage);
+        state.output = output;
+        states[name] = state;
+        if (value !== output) element.setAttribute(name, output);
+      });
+    }
+
+    function localizeTree(root) {
+      if (root.nodeType === Node.TEXT_NODE) localizeTextNode(root);
+      if (root.nodeType === Node.ELEMENT_NODE) localizeAttributes(root);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.nodeType === Node.TEXT_NODE) localizeTextNode(node);
+        else localizeAttributes(node);
+      }
+    }
+
+    function setLanguage(language) {
+      if (!SUPPORTED_LANGUAGES.includes(language)) return;
+      currentLanguage = language;
+      document.documentElement.lang = language;
+      localizeTree(document.documentElement);
+      const selector = document.getElementById('language-select');
+      if (selector) selector.value = language;
+      try {
+        localStorage.setItem('knack-language', language);
+      } catch (error) {
+        console.warn('Could not save language preference:', error);
+      }
+    }
+
+    function initializeLanguage() {
+      let savedLanguage = 'de';
+      try {
+        const stored = localStorage.getItem('knack-language');
+        if (SUPPORTED_LANGUAGES.includes(stored)) savedLanguage = stored;
+      } catch (error) {
+        console.warn('Could not load language preference:', error);
+      }
+      const selector = document.getElementById('language-select');
+      selector.addEventListener('change', () => setLanguage(selector.value));
+      setLanguage(savedLanguage);
+      const observer = new MutationObserver(records => {
+        records.forEach(record => {
+          if (record.type === 'characterData') localizeTextNode(record.target);
+          else record.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) localizeTree(node);
+          });
+        });
+      });
+      observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+    }
+
+    initializeLanguage();
 
     document.getElementById('host-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') createHostGame(); });
     document.getElementById('join-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') clientJoinAction(); });
