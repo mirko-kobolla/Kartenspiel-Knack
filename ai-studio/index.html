@@ -85,7 +85,7 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .brand-sub { margin: -10px 0 0; color: var(--text-muted); font-size: 1.05rem; max-width: 580px; }
-    .role-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 340px)); gap: 20px; width: 100%; max-width: 720px; }
+    .role-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; width: 100%; max-width: 1080px; }
     .role-card {
       background: var(--bg-elevated); border: 2px solid var(--border); border-radius: 20px; padding: 28px 24px;
       color: var(--text); display: flex; flex-direction: column; align-items: center; gap: 12px;
@@ -95,6 +95,11 @@
     .role-icon { display: block; font-size: 2.6rem; line-height: 1; }
     .role-title { display: block; font-size: 1.3rem; font-weight: 800; }
     .role-desc { display: block; font-size: 0.92rem; color: var(--text-muted); line-height: 1.4; }
+    .demo-badge {
+      display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 999px; padding: 5px 10px;
+      color: #fde68a; font-size: 0.78rem; font-weight: 900; letter-spacing: 0.05em;
+    }
 
     .join-card {
       max-width: 480px; width: 100%; margin: auto; background: var(--bg-elevated);
@@ -428,6 +433,20 @@
     .move-progress-bar { height: 100%; width: 100%; background: var(--accent); transition: width 0.08s linear; }
     .move-modal.is-knock .move-progress-bar { background: var(--amber); }
     .move-modal.is-paused .move-progress-bar { background: var(--gold); }
+    .demo-explanation {
+      display: grid; gap: 8px; background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 12px; padding: 12px 14px;
+      color: var(--text); font-size: 0.9rem; line-height: 1.45;
+    }
+    .demo-explanation strong { color: #bae6fd; }
+    .demo-explanation p { margin: 0; }
+    .demo-move-modal, .demo-intro-modal {
+      max-height: calc(100vh - 36px); max-height: calc(100dvh - 36px); overflow-y: auto;
+    }
+    .demo-showdown-explanation {
+      background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 10px; padding: 10px 12px; color: #e0f2fe; font-size: 0.88rem; line-height: 1.45;
+    }
     .move-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
     .move-status-text { font-size: 0.86rem; font-weight: 700; color: var(--text-muted); }
     .move-status-text.paused { color: var(--gold); }
@@ -498,6 +517,11 @@
           <span class="role-title">Spiel beitreten</span>
           <span class="role-desc">Mit 4-stelliger Raum-ID &amp; Namen einem laufenden Raum beitreten.</span>
         </button>
+        <button type="button" class="role-card" onclick="showDemoIntro()">
+          <span class="role-icon">🎓</span>
+          <span class="role-title">DEMO ansehen</span>
+          <span class="role-desc">Lerne die Regeln in einem langsamen Bot-Spiel mit Erklärungen zu jedem Zug und den möglichen Optionen.</span>
+        </button>
       </div>
     </section>
 
@@ -546,6 +570,7 @@
           <div class="stat-badge host-tag hidden" id="ui-host-badge">👑 Host</div>
           <div class="stat-badge" id="ui-round-badge">Lobby</div>
           <div class="stat-badge" id="ui-lives-badge">Leben: 3</div>
+          <div class="demo-badge hidden" id="ui-demo-badge">🎓 DEMO · Bot-Erklärspiel</div>
         </div>
         <div class="topbar-right">
           <div class="stat-badge" id="ui-turn-badge">Warte...</div>
@@ -554,7 +579,7 @@
           <button type="button" class="btn btn-sm hidden" id="ui-popup-mode-btn" onclick="cyclePopupMode()">Popup: Auto + Halten</button>
           <button type="button" class="btn btn-primary btn-sm hidden" id="ui-next-round-btn" onclick="hostNextRound()">Nächste Runde ▶</button>
           <button type="button" class="btn btn-amber btn-sm hidden" id="ui-podium-btn" onclick="hostShowPodium()">Zur Siegerehrung 🏆</button>
-          <button type="button" class="btn btn-sm" onclick="confirmResetToStart()">Beenden</button>
+          <button type="button" class="btn btn-sm" id="ui-exit-btn" onclick="confirmResetToStart()">Beenden</button>
         </div>
       </div>
 
@@ -628,7 +653,7 @@
 
           <div class="hand-panel" id="ui-hand-panel">
             <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-              <span style="font-weight:800; color:var(--text-muted); font-size:0.86rem; text-transform:uppercase; letter-spacing:0.06em;">Deine Hand</span>
+              <span id="ui-hand-label" style="font-weight:800; color:var(--text-muted); font-size:0.86rem; text-transform:uppercase; letter-spacing:0.06em;">Deine Hand</span>
               <span class="score-pill" id="ui-score-pill">0 Pkt.</span>
             </div>
             <div class="cards-row" id="ui-hand-cards"></div>
@@ -672,6 +697,9 @@
     let appRole = null; // 'host' | 'client'
     let peerInstance = null;
     let botTimer = null;
+    let demoMode = false;
+    let demoRoundTimer = null;
+    let demoNextExplanation = null;
     let selectedHandIdx = null;
     let selectedCenterIdx = null;
 
@@ -898,6 +926,76 @@
       document.getElementById('join-room-input').focus();
     }
 
+    function showDemoIntro() {
+      const overlay = document.getElementById('move-overlay');
+      overlay.innerHTML = `
+        <div class="move-modal demo-intro-modal">
+          <div class="move-modal-header">
+            <div class="move-modal-title"><span>🎓</span><span>KNACK kurz erklärt</span></div>
+          </div>
+          <div class="demo-explanation">
+            <p><strong>Ziel:</strong> Vermeide die niedrigste Wertung. Wer ein Leben verliert, schwimmt bei den voreingestellten Regeln zunächst eine Gnadenrunde; danach scheidet man aus.</p>
+            <p><strong>Wertung:</strong> Es zählt die Summe der Karten einer Farbe. Ass = 11, Zehn und Bildkarten = 10, Zahlenkarten = ihr Wert. Ein Drilling zählt 30,5; 31 Punkte sind „Knack“ und beenden die Runde sofort. Drei Asse sind „Feuer“.</p>
+            <p><strong>Im eigenen Zug:</strong> Tausche eine Karte oder alle drei mit der offenen Mitte, schiebe ohne Tausch oder klopfe. Im ersten Zug jeder Runde ist Tauschen Pflicht. Nach dem Klopfen bekommt jeder andere aktive Spieler noch einen Zug.</p>
+            <p><strong>In dieser Demo:</strong> Vier Bots spielen automatisch mit Zeitlupe. Vor jedem Zug erklären sie ihre Entscheidung und die erlaubten Alternativen; nach der Runde wird die Wertung erklärt.</p>
+          </div>
+          <div class="move-footer">
+            <button type="button" class="btn btn-sm" onclick="closeDemoIntro()">Zurück</button>
+            <button type="button" class="btn btn-green" onclick="startDemoGame()">Demo starten ▶</button>
+          </div>
+        </div>`;
+      overlay.classList.remove('hidden');
+    }
+
+    function closeDemoIntro() {
+      const overlay = document.getElementById('move-overlay');
+      overlay.classList.add('hidden');
+      overlay.innerHTML = '';
+    }
+
+    function startDemoGame() {
+      if (peerInstance) { try { peerInstance.destroy(); } catch (e) {} peerInstance = null; }
+      clearTimeout(botTimer);
+      clearTimeout(demoRoundTimer);
+      stopHostPopupCoordinator();
+      closeMovePopupUI();
+      hostConnections.clear();
+      clientConn = null;
+      clientState = null;
+      appRole = 'host';
+      demoMode = true;
+      demoNextExplanation = null;
+
+      hostState.roomCode = 'DEMO';
+      hostState.roomId = 'KNACK-DEMO';
+      hostState.phase = 'LOBBY';
+      hostState.round = 0;
+      hostState.popupMode = 'auto';
+      hostState.moveSeq = 0;
+      hostState.lastMove = null;
+      hostState.migrationInProgress = false;
+      hostState.rules = { mustSwapFirstRound: true, swimmingEnabled: true, fireEnabled: true, knockPenalty: false };
+      hostState.players = [createPlayerObj('HOST', 'Bot Alex', true, false)];
+      ['Bot Mia', 'Bot Leon', 'Bot Nora'].forEach((name, index) => {
+        hostState.players.push(createPlayerObj(`BOT-DEMO-${index + 1}`, name, true, false));
+      });
+      hostState.dealerIndex = -1;
+      hostState.currentTurnIndex = 0;
+      hostState.deck = [];
+      hostState.discardPile = [];
+      hostState.dealerReserve = [];
+      hostState.centerCards = [];
+      hostState.consecutivePasses = 0;
+      hostState.knockedBy = null;
+      hostState.knockQueue = [];
+      hostState.logs = [];
+      hostState.showdownInfo = null;
+      hostState.eliminationOrder = [];
+
+      showScreen('game');
+      hostStartGame();
+    }
+
     function backToStart() {
       showScreen('start');
     }
@@ -913,8 +1011,9 @@
     function confirmResetToStart() {
       const st = getLocalViewState();
       if (st && st.phase !== 'LOBBY' && st.phase !== 'GAME_OVER') {
-        if (!confirm('Laufendes Spiel wirklich verlassen?')) return;
+        if (!confirm(demoMode ? 'Demo wirklich beenden?' : 'Laufendes Spiel wirklich verlassen?')) return;
       }
+      clearTimeout(demoRoundTimer);
       if (peerInstance) { try { peerInstance.destroy(); } catch (e) {} peerInstance = null; }
       clearTimeout(botTimer);
       location.reload();
@@ -925,6 +1024,7 @@
        ========================================================================== */
     function getMoveDurationMs(move) {
       if (!move) return 0;
+      if (demoMode) return move.type === 'PASS' ? 4500 : 6000;
       if (move.type === 'PASS') return 1400;
       if (move.type === 'DEALER_OPEN') return 1900;
       if (move.type === 'KNOCK') return 2400;
@@ -983,9 +1083,14 @@
         bodyHtml = `<div class="knock-stage" style="padding:10px 0;"><div style="color:var(--text-muted); font-weight:700;">${escapeHtml(move.detail || 'Offene Tischmitte:')}</div><div class="anim-cards-pop">${openHtml}</div></div>`;
       }
 
-      const hintText = mode === 'auto' ? 'Karten gedrückt halten zum Pausieren' : 'Warten bis alle Spieler bestätigen';
+      const demoExplanationHtml = demoMode && move.demoExplanation ? `
+          <section class="demo-explanation">
+            <p><strong>Warum dieser Zug?</strong> ${escapeHtml(move.demoExplanation.reason)}</p>
+            <p><strong>Welche Möglichkeiten gibt es?</strong> ${escapeHtml(move.demoExplanation.options)}</p>
+          </section>` : '';
+      const hintText = demoMode ? 'Zeitlupe · Erklärung zum Zug' : (mode === 'auto' ? 'Karten gedrückt halten zum Pausieren' : 'Warten bis alle Spieler bestätigen');
       overlay.innerHTML = `
-        <div class="move-modal ${modalExtraCls}" id="move-modal-box">
+        <div class="move-modal ${modalExtraCls} ${demoMode ? 'demo-move-modal' : ''}" id="move-modal-box">
           <div class="move-modal-header">
             <div class="move-modal-title"><span>${titleIcon}</span><span>${titleText}</span></div>
             <span style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">${hintText}</span>
@@ -997,6 +1102,7 @@
                onpointerleave="handlePopupPointerUp(event)">
             ${bodyHtml}
           </div>
+          ${demoExplanationHtml}
           <div class="move-progress ${mode === 'confirm' ? 'hidden' : ''}">
             <div class="move-progress-bar" id="move-progress-bar" style="width:100%;"></div>
           </div>
@@ -1394,6 +1500,7 @@
 
     function hostShowPodium() {
       if (appRole !== 'host') return;
+      clearTimeout(demoRoundTimer);
       stopHostPopupCoordinator();
       closeMovePopupUI();
       hostState.phase = 'GAME_OVER';
@@ -1403,6 +1510,7 @@
 
     function hostBackToLobby() {
       if (appRole !== 'host') return;
+      clearTimeout(demoRoundTimer);
       stopHostPopupCoordinator();
       closeMovePopupUI();
       hostState.phase = 'LOBBY';
@@ -1417,6 +1525,7 @@
     }
 
     function startNextRound() {
+      clearTimeout(demoRoundTimer);
       clearTimeout(botTimer);
       stopHostPopupCoordinator();
       closeMovePopupUI();
@@ -1454,7 +1563,12 @@
 
     function emitHostMove(moveData) {
       hostState.moveSeq += 1;
-      hostState.lastMove = { seq: hostState.moveSeq, ...moveData };
+      hostState.lastMove = {
+        seq: hostState.moveSeq,
+        ...moveData,
+        ...(demoMode && demoNextExplanation ? { demoExplanation: demoNextExplanation } : {})
+      };
+      demoNextExplanation = null;
     }
 
     function processDealerDecision(dealerId, keepHand) {
@@ -1646,19 +1760,29 @@
       if (hostState.lastMove) startHostPopupCoordinator(hostState.lastMove);
       broadcastHostState();
       renderAll();
+      if (demoMode) {
+        clearTimeout(demoRoundTimer);
+        demoRoundTimer = setTimeout(() => {
+          if (!demoMode || hostState.phase !== 'SHOWDOWN') return;
+          if (hostState.showdownInfo && hostState.showdownInfo.isFinalRound) hostShowPodium();
+          else startNextRound();
+        }, 11000);
+      }
     }
 
     function scheduleBotIfNeeded(delayMs = 800) {
       clearTimeout(botTimer);
       if (hostPopupCtrl.activeSeq) return;
-      const waitTime = Math.max(600, delayMs);
+      const waitTime = demoMode ? Math.max(1600, delayMs) : Math.max(600, delayMs);
 
       if (hostState.phase === 'DEALER_CHOICE') {
         const dealer = hostState.players[hostState.dealerIndex];
         if (dealer && (dealer.isBot || !dealer.connected)) {
           botTimer = setTimeout(() => {
             const ev = evaluateHand(dealer.hand, hostState.rules.fireEnabled);
-            processDealerDecision(dealer.id, ev.score >= 20);
+            const keepHand = ev.score >= 20;
+            if (demoMode) demoNextExplanation = buildDemoDealerExplanation(dealer, keepHand);
+            processDealerDecision(dealer.id, keepHand);
           }, waitTime);
         }
       } else if (hostState.phase === 'PLAYING') {
@@ -1670,7 +1794,9 @@
               processPlayAction(cp.id, mustSwap ? { type: 'SWAP_ONE', handIdx: 0, centerIdx: 0 } : { type: 'PASS' });
               return;
             }
-            processPlayAction(cp.id, chooseBotAction(cp));
+            const action = chooseBotAction(cp);
+            if (demoMode) demoNextExplanation = buildDemoBotExplanation(cp, action);
+            processPlayAction(cp.id, action);
           }, waitTime);
         }
       }
@@ -1696,6 +1822,86 @@
       if (bestSwapScore > currentEval.score && bestSwapAction) return bestSwapAction;
       if (hostState.knockedBy === null && currentEval.score >= 27) return { type: 'KNOCK' };
       return { type: 'PASS' };
+    }
+
+    function buildDemoDealerExplanation(dealer, keepHand) {
+      const handEval = evaluateHand(dealer.hand, hostState.rules.fireEnabled);
+      return {
+        reason: keepHand
+          ? `Die Hand des Gebers zählt ${handEval.label}. Die Demo-Strategie behält Hände ab 20 Punkten und deckt die Reserve als Tischmitte auf.`
+          : `Die Hand des Gebers zählt ${handEval.label}. Da sie unter 20 Punkten liegt, tauscht der Bot sie blind gegen die Reserve; die bisherige Hand wird zur Tischmitte.`,
+        options: 'Der Geber kann seine Hand behalten und die drei Reservekarten aufdecken oder blind mit der Reserve tauschen. Der Demo-Bot nutzt dafür die 20-Punkte-Schwelle.'
+      };
+    }
+
+    function buildDemoBotExplanation(bot, action) {
+      const currentEval = evaluateHand(bot.hand, hostState.rules.fireEnabled);
+      const mustSwap = hostState.rules.mustSwapFirstRound && !bot.hasPlayedThisRound;
+      const options = mustSwap
+        ? 'Wegen der Tauschpflicht muss der Bot eine Karte oder alle drei Karten tauschen. Schieben und Klopfen sind in diesem ersten Zug gesperrt.'
+        : hostState.knockedBy
+          ? 'Nach dem Klopfen kann der Bot noch tauschen oder schieben. Ein weiteres Klopfen ist nicht möglich.'
+          : 'Der Bot kann eine oder alle drei Karten tauschen, schieben oder klopfen.';
+
+      if (action.type === 'SWAP_ONE') {
+        const given = bot.hand[action.handIdx];
+        const taken = hostState.centerCards[action.centerIdx];
+        const newHand = [...bot.hand];
+        newHand[action.handIdx] = taken;
+        const newEval = evaluateHand(newHand, hostState.rules.fireEnabled);
+        const comparison = newEval.score > currentEval.score
+          ? `verbessert die Wertung von ${currentEval.label} auf ${newEval.label}`
+          : newEval.score === currentEval.score
+            ? `lässt die Wertung bei ${newEval.label}`
+            : `senkt die Wertung von ${currentEval.label} auf ${newEval.label}${mustSwap ? ', ist wegen der Tauschpflicht aber nötig' : ''}`;
+        return {
+          reason: `Der Tausch ${formatCardShort(given)} gegen ${formatCardShort(taken)} ${comparison}.`,
+          options
+        };
+      }
+      if (action.type === 'SWAP_ALL') {
+        const newEval = evaluateHand(hostState.centerCards, hostState.rules.fireEnabled);
+        const comparison = newEval.score > currentEval.score
+          ? `verbessern die Wertung von ${currentEval.label} auf ${newEval.label}`
+          : newEval.score === currentEval.score
+            ? `lassen die Wertung bei ${newEval.label}`
+            : `senken die Wertung von ${currentEval.label} auf ${newEval.label}${mustSwap ? ', sind wegen der Tauschpflicht aber nötig' : ''}`;
+        return {
+          reason: `Die drei Karten der Tischmitte ${comparison}.`,
+          options
+        };
+      }
+      if (action.type === 'KNOCK') {
+        return {
+          reason: `Mit ${currentEval.label} klopft der Bot nach seiner einfachen Strategie ab 27 Punkten. Danach erhalten alle anderen aktiven Spieler noch genau einen Zug.`,
+          options
+        };
+      }
+      return {
+        reason: `Kein möglicher Tausch verbessert die aktuelle Hand mit ${currentEval.label}. Der Bot schiebt und behält seine Karten.`,
+        options
+      };
+    }
+
+    function buildDemoShowdownExplanation(showdownInfo, players) {
+      if (showdownInfo.reason === 'FEUER') {
+        return 'Drei Asse bilden Feuer. Bei aktivierter Feuer-Regel endet die Runde sofort; alle anderen aktiven Spieler verlieren ein Leben.';
+      }
+      if (showdownInfo.reason === 'KNACK_31') {
+        return '31 Punkte in einer Farbe sind Knack und beenden die Runde sofort. Danach wird die niedrigste Hand ermittelt.';
+      }
+      const activePlayers = players.filter(player => !player.eliminated || player.lostLastRound);
+      const scores = activePlayers.map(player => player.eval && player.eval.score).filter(Number.isFinite);
+      if (scores.length && scores.every(score => score === scores[0])) {
+        return 'Alle aktiven Spieler haben dieselbe Wertung. Bei diesem Gleichstand verliert niemand ein Leben.';
+      }
+      const lowest = Math.min(...scores);
+      const lowestPlayers = activePlayers.filter(player => player.eval && player.eval.score === lowest);
+      const names = lowestPlayers.map(player => player.name).join(', ');
+      const penalty = hostState.rules.knockPenalty && lowestPlayers.some(player => player.id === hostState.knockedBy)
+        ? ' Der Klopfer verliert bei aktivierter Klopf-Strafe zwei Leben.'
+        : '';
+      return `${names} haben mit ${lowest} Punkten die niedrigste Wertung und verlieren ein Leben.${penalty} Die übrigen Spieler behalten ihre Leben.`;
     }
 
     function buildRankings() {
@@ -2070,6 +2276,7 @@
     }
 
     function dispatchPlayerAction(action) {
+      if (demoMode) return;
       selectedHandIdx = null;
       selectedCenterIdx = null;
       if (appRole === 'host') {
@@ -2139,10 +2346,13 @@
 
       document.getElementById('ui-room-pill').textContent = st.roomId;
       document.getElementById('ui-player-badge').textContent = me ? me.name : 'Spieler';
-      document.getElementById('ui-host-badge').classList.toggle('hidden', !isHost);
+      document.getElementById('ui-hand-label').textContent = demoMode && me ? `Hand von ${me.name}` : 'Deine Hand';
+      document.getElementById('ui-host-badge').classList.toggle('hidden', !isHost || demoMode);
       document.getElementById('ui-round-badge').textContent = st.round === 0 ? 'Lobby' : `Runde ${st.round}`;
 
       const livesEl = document.getElementById('ui-lives-badge');
+      document.getElementById('ui-demo-badge').classList.toggle('hidden', !demoMode);
+      document.getElementById('ui-exit-btn').textContent = demoMode ? 'Demo beenden' : 'Beenden';
       if (me) {
         if (me.eliminated) { livesEl.textContent = 'Ausgeschieden'; livesEl.style.color = '#fca5a5'; }
         else if (me.swimming) { livesEl.textContent = '🌊 SCHWIMMT!'; livesEl.style.color = '#fde68a'; }
@@ -2152,7 +2362,7 @@
       const modeLabels = { auto: 'Auto + Halten', confirm: 'Alle bestätigen', off: 'Aus' };
       const popBtn = document.getElementById('ui-popup-mode-btn');
       popBtn.textContent = `Popup: ${modeLabels[st.popupMode]}`;
-      popBtn.className = 'btn btn-sm ' + (isHost ? '' : 'hidden ') + (st.popupMode === 'off' ? '' : 'btn-primary');
+      popBtn.className = 'btn btn-sm ' + (isHost && !demoMode ? '' : 'hidden ') + (st.popupMode === 'off' ? '' : 'btn-primary');
 
       const isFinalRound = Boolean(st.showdownInfo && st.showdownInfo.isFinalRound);
       document.getElementById('ui-log-btn').classList.toggle('hidden', st.phase === 'LOBBY');
@@ -2226,7 +2436,7 @@
       }
 
       activeArea.classList.remove('hidden');
-      const myTurn = isMyTurnLocal();
+      const myTurn = !demoMode && isMyTurnLocal();
       const activeTurnPlayer = st.players.find(p => p.isTurn);
 
       if (st.phase === 'SHOWDOWN') { turnBadge.className = 'stat-badge knocked-alert'; turnBadge.textContent = 'Aufdecken!'; }
@@ -2239,8 +2449,9 @@
         if (p.id === st.myId) cls.push('is-me');
         if (p.eliminated) cls.push('eliminated');
         const statusTxt = p.eliminated ? 'Raus' : (p.swimming ? '🌊' : `${p.lives}♥`);
-        const prefix = p.isHost ? '👑 ' : (p.isDealer ? '🃏 ' : '');
-        return `<div class="${cls.join(' ')}"><span>${prefix}${escapeHtml(p.name)}${p.id === st.myId ? ' (Du)' : ''}</span><span style="color:var(--accent);">${statusTxt}</span></div>`;
+        const prefix = demoMode ? '🤖 ' : (p.isHost ? '👑 ' : (p.isDealer ? '🃏 ' : ''));
+        const isLocalHuman = p.id === st.myId && !demoMode;
+        return `<div class="${cls.join(' ')}"><span>${prefix}${escapeHtml(p.name)}${isLocalHuman ? ' (Du)' : ''}</span><span style="color:var(--accent);">${statusTxt}</span></div>`;
       }).join('');
 
       document.getElementById('ui-dealer-choice').classList.toggle('hidden', !(st.phase === 'DEALER_CHOICE' && myTurn));
@@ -2274,6 +2485,7 @@
             <div style="font-weight:900; color:var(--gold); font-size:1.08rem;">${escapeHtml(st.showdownInfo.headline)}</div>
             ${st.showdownInfo.losers.length ? `<div style="font-size:0.9rem; color:#fca5a5; margin-top:4px;">Leben verloren: ${escapeHtml(st.showdownInfo.losers.join(', '))}</div>` : ''}
           </div>
+          ${demoMode ? `<div class="demo-showdown-explanation"><strong>Regelerklärung:</strong> ${escapeHtml(buildDemoShowdownExplanation(st.showdownInfo, st.players))}</div>` : ''}
           <div class="showdown-hands-grid">${handsGrid}</div>`;
       } else {
         sdBox.classList.add('hidden');
@@ -2368,7 +2580,17 @@
         </div>` : '';
 
       let switchBoxHtml = '';
-      if (isHost) {
+      if (demoMode) {
+        switchBoxHtml = `
+          <div class="host-switch-box">
+            <div style="font-weight:800; font-size:1rem;">Demo abgeschlossen</div>
+            <div style="font-size:0.88rem; color:var(--text-muted);">Du kannst das Erklärspiel erneut starten oder zum Startbildschirm zurückkehren.</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+              <button type="button" class="btn btn-green btn-lg" onclick="hostStartGame()">Demo erneut starten</button>
+              <button type="button" class="btn btn-primary btn-lg" onclick="confirmResetToStart()">Demo beenden</button>
+            </div>
+          </div>`;
+      } else if (isHost) {
         const handoffBtns = otherHumans.length
           ? `<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:4px;">
               ${otherHumans.map(p => `<button type="button" class="btn btn-sm btn-gold" onclick="hostGiveUpToPlayer('${p.id}')">👑 Host abgeben an ${escapeHtml(p.name)}</button>`).join('')}
