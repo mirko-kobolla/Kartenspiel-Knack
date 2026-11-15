@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151c">
+  <title>Zauberwürfel 3D</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Zauberwürfel 3D Startseite">
+        <span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>WÜRFEL<span class="brand-light">WERKSTATT</span></span>
+      </a>
+      <span class="version">3 × 3 × 3</span>
+    </header>
+
+    <section class="intro">
+      <p class="eyebrow">DEIN SPIELFELD</p>
+      <h1>Der Zauberwürfel.<br><span>Dreh ihn, knack ihn.</span></h1>
+      <p class="intro-copy">Dreh den Würfel in alle Richtungen und finde Zug für Zug zurück zur Lösung.</p>
+    </section>
+
+    <section class="workspace" aria-label="Zauberwürfel-Spiel">
+      <div class="cube-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">3D ANSICHT</p>
+            <h2>Dein Würfel</h2>
+          </div>
+          <span class="drag-hint"><span aria-hidden="true">↔</span> Ansicht bewegen</span>
+        </div>
+        <div class="cube-stage" id="cube-stage" aria-label="3D-Zauberwürfel. Auf einer Fläche wischen, um sie zu drehen; daneben ziehen, um die Ansicht zu bewegen.">
+          <div class="cube" id="cube" aria-hidden="true">
+            <div class="face face-front" data-face="F"></div>
+            <div class="face face-back" data-face="B"></div>
+            <div class="face face-right" data-face="R"></div>
+            <div class="face face-left" data-face="L"></div>
+            <div class="face face-top" data-face="U"></div>
+            <div class="face face-bottom" data-face="D"></div>
+          </div>
+        </div>
+        <p class="view-caption"><strong>Ebene:</strong> Auf einem Stein starten, dann →/↓ im Uhrzeigersinn oder ←/↑ dagegen wischen.<br><strong>Ansicht:</strong> Neben dem Würfel ziehen.</p>
+      </div>
+
+      <aside class="controls-panel">
+        <div class="panel-heading controls-heading">
+          <div>
+            <p class="eyebrow">ZUG UM ZUG</p>
+            <h2>Steuerung</h2>
+          </div>
+          <span class="move-count" id="move-count">0 Züge</span>
+        </div>
+
+        <div class="action-row">
+          <button class="button button-primary" id="scramble-button" type="button"><span aria-hidden="true">⤨</span> Mischen</button>
+          <button class="button button-secondary" id="undo-button" type="button" disabled><span aria-hidden="true">↶</span> Zurück</button>
+          <button class="icon-button" id="reset-button" type="button" aria-label="Würfel zurücksetzen" title="Zurücksetzen"><span aria-hidden="true">⟲</span></button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="move-section">
+          <div class="section-label"><span>DREHUNGEN</span><span class="notation">im Uhrzeigersinn</span></div>
+          <div class="move-grid" id="move-grid" aria-label="Würfelzüge">
+            <button type="button" data-move="U">U</button>
+            <button type="button" data-move="D">D</button>
+            <button type="button" data-move="L">L</button>
+            <button type="button" data-move="R">R</button>
+            <button type="button" data-move="F">F</button>
+            <button type="button" data-move="B">B</button>
+          </div>
+          <div class="notation-row">
+            <p class="move-note">Mit <kbd>′</kbd> gegen den Uhrzeigersinn · mit <kbd>2</kbd> zweimal</p>
+            <button class="demo-open-button" id="demo-open" type="button">Notation-Demo <span aria-hidden="true">↗</span></button>
+          </div>
+        </div>
+
+        <form class="algorithm-form" id="algorithm-form">
+          <label for="algorithm-input">Zugfolge eingeben</label>
+          <div class="input-row">
+            <input id="algorithm-input" type="text" autocomplete="off" placeholder="z. B. R U R′ U′" aria-describedby="algorithm-help">
+            <button class="run-button" type="submit" aria-label="Zugfolge ausführen">Los <span aria-hidden="true">→</span></button>
+          </div>
+          <p class="help-text" id="algorithm-help">Züge mit Leerzeichen trennen. Beispiel: <code>R U R' U'</code></p>
+        </form>
+
+        <div class="hint-card" aria-live="polite">
+          <div class="hint-icon" aria-hidden="true">✦</div>
+          <div class="hint-content">
+            <p class="eyebrow">DEIN NÄCHSTER ZUG</p>
+            <p class="hint-message" id="hint-message">Mische den Würfel, dann zeige ich dir den Weg zurück.</p>
+          </div>
+          <button class="hint-button" id="hint-button" type="button" disabled>Hinweis <span aria-hidden="true">→</span></button>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+      <span>Ein Zug nach dem anderen.</span>
+      <span class="footer-mark">DREHEN · DENKEN · LÖSEN</span>
+    </footer>
+
+    <dialog class="demo-dialog" id="notation-demo" aria-labelledby="demo-title">
+      <div class="demo-header">
+        <div>
+          <p class="eyebrow">KURZ ERKLÄRT</p>
+          <h2 id="demo-title">Zugnotation verstehen</h2>
+        </div>
+        <button class="demo-close" id="demo-close" type="button" aria-label="Demo schließen">×</button>
+      </div>
+      <p class="demo-intro">Der Buchstabe benennt die Seite, die du drehst. Die Richtung gilt, als würdest du direkt auf diese Seite schauen.</p>
+      <div class="face-legend" aria-label="Buchstaben für die Würfelseiten">
+        <span><kbd>U</kbd> Oben</span>
+        <span><kbd>D</kbd> Unten</span>
+        <span><kbd>L</kbd> Links</span>
+        <span><kbd>R</kbd> Rechts</span>
+        <span><kbd>F</kbd> Vorne</span>
+        <span><kbd>B</kbd> Hinten</span>
+      </div>
+      <div class="demo-gesture"><strong>Ebene wischen:</strong> Auf einem Stein starten. Rechts oder nach unten = im Uhrzeigersinn; links oder nach oben = Gegendrehung. Neben dem Würfel ziehen bewegt nur die Ansicht.</div>
+      <div class="demo-step" aria-live="polite" aria-atomic="true">
+        <p class="eyebrow" id="demo-progress">BEREIT</p>
+        <p class="demo-notation" id="demo-notation">R</p>
+        <p class="demo-explanation" id="demo-explanation">Starte die Demo: Der Würfel zeigt jeden Zug direkt an. Dein aktueller Spielstand bleibt erhalten.</p>
+      </div>
+      <div class="demo-actions">
+        <button class="demo-restart" id="demo-restart" type="button">Von vorn</button>
+        <button class="button button-primary demo-next" id="demo-next" type="button">Demo starten <span aria-hidden="true">→</span></button>
+      </div>
+    </dialog>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
