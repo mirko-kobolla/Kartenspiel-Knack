@@ -20,6 +20,7 @@ Die Anwendung verwendet die Phasen `LOBBY`, `DEALER_CHOICE`, `PLAYING`, `SHOWDOW
 
 - Der Host ist selbst ein regulärer Spieler und verwaltet den autoritativen Spielzustand.
 - Host und Clients verwenden dieselbe Spieloberfläche. Während einer laufenden Runde erhält jeder Spieler nur die eigene Hand; fremde Hände werden erst beim Aufdecken sichtbar.
+- Der Spieler am Zug wird in der Spielerliste auf allen Geräten durch einen deutlich pulsierenden grünen Hintergrund und Leuchteffekt markiert. Bei aktivierter Systemeinstellung „Bewegung reduzieren“ bleibt die Markierung statisch.
 - Die Geber-Entscheidung, Tauschaktionen, Schieben und Klopfen werden vom Host verarbeitet.
 - Nach einem Umlauf, in dem alle aktiven Spieler geschoben haben, werden neue Karten in die Mitte gelegt.
 - Nach dem Klopfen erhalten die übrigen aktiven Spieler jeweils noch einen Zug.

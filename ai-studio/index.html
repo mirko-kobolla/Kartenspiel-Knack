@@ -296,7 +296,24 @@
       flex-shrink: 0; background: var(--bg-elevated); border: 1.5px solid var(--border); border-radius: 10px;
       padding: 7px 12px; display: flex; align-items: center; gap: 8px; font-size: 0.86rem; font-weight: 700;
     }
-    .opp-pill.active-turn { border-color: var(--green); background: rgba(34, 197, 94, 0.14); }
+    .opp-pill.active-turn {
+      border-color: #86efac; background: rgba(34, 197, 94, 0.32);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4), 0 0 12px rgba(34, 197, 94, 0.55);
+      animation: pulseActivePlayer 1s ease-in-out infinite;
+    }
+    @keyframes pulseActivePlayer {
+      0%, 100% {
+        background: rgba(34, 197, 94, 0.28);
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4), 0 0 12px rgba(34, 197, 94, 0.55);
+      }
+      50% {
+        background: rgba(34, 197, 94, 0.58);
+        box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.55), 0 0 24px rgba(34, 197, 94, 0.9);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stat-badge.turn-active, .opp-pill.active-turn { animation: none; }
+    }
     .opp-pill.is-me { border-color: rgba(56, 189, 248, 0.55); }
     .opp-pill.eliminated { opacity: 0.45; text-decoration: line-through; }
 
