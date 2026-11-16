@@ -26,6 +26,7 @@ Die Anwendung verwendet die Phasen `LOBBY`, `DEALER_CHOICE`, `PLAYING`, `SHOWDOW
 - Die Geber-Entscheidung, Tauschaktionen, Schieben und Klopfen werden vom Host verarbeitet.
 - Nach einem Umlauf, in dem alle aktiven Spieler geschoben haben, werden neue Karten in die Mitte gelegt.
 - Nach dem Klopfen erhalten die übrigen aktiven Spieler jeweils noch einen Zug.
+- Das Zug-Popup wird für den Spieler am Zug geschlossen; dessen gültige Aktion wird auch während einer laufenden Animation vom Host verarbeitet.
 - KI-Spieler können vom Host hinzugefügt werden.
 
 ## Konfigurierbare Regeln und Bedienung
@@ -75,7 +76,7 @@ Wichtige Verhaltensanforderungen:
 4. In getrennten Browsern oder Geräten beitreten und Kartentausch, Schieben und Klopfen prüfen.
 5. Einen Durchlauf mit `mustSwapFirstRound` und den anderen Hausregel-Kombinationen prüfen.
 6. Nach `GAME_OVER` die Host-Übergabe testen.
-7. Auf Android Chrome und iPad Safari zusätzlich folgende Wiederverbindungen prüfen: Host kurz in den Hintergrund wechseln und zurückkehren, WLAN kurz trennen/wiederherstellen sowie einen Client im Hintergrund lassen und erneut aktivieren. Raum-ID, Spielerzahl, Bot-Zustand, aktuelle Runde und Handkarten müssen erhalten bleiben; ein wiederbeitretender Client darf nicht doppelt erscheinen.
+7. Auf Android Chrome und iPad Safari zusätzlich folgende Wiederverbindungen prüfen: Host kurz in den Hintergrund wechseln und zurückkehren, WLAN kurz trennen/wiederherstellen sowie einen Client im Hintergrund lassen und erneut aktivieren. Raum-ID, Spielerzahl, Bot-Zustand, aktuelle Runde und Handkarten müssen erhalten bleiben; ein wiederbeitretender Client darf nicht doppelt erscheinen. Während ein Bot-Popup läuft, muss der aktive menschliche Spieler die nach den Regeln erlaubte Aktion ausführen können.
 8. Insbesondere auf iPad Safari Karten-Touch und Popup-Bestätigung prüfen.
 9. Die Sprachauswahl auf Start-, Setup-, Lobby-, Spiel-, Demo-, Popup- und Ergebnisansicht wechseln; zusätzlich prüfen, ob die Auswahl nach einem Neuladen erhalten bleibt.
 

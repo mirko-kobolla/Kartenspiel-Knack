@@ -1557,7 +1557,6 @@
       }
 
       if (msg.type === 'ACTION') {
-        if (hostPopupCtrl.activeSeq) return;
         const sender = hostState.players.find(p => p.id === conn.peer);
         if (!sender || sender.eliminated) return;
         if (msg.action && msg.action.type === 'DEALER_DECIDE' && hostState.phase === 'DEALER_CHOICE') {
@@ -2117,6 +2116,28 @@
       return [...survivors, ...eliminatedReversed].map((p, idx) => ({ place: idx + 1, id: p.id, name: p.name }));
     }
 
+    function dismissMovePopupForCurrentPlayer() {
+      if (!uiPopup.activeMove) return;
+      if (uiPopup.localPointerHeld || uiPopup.localTogglePaused) {
+        uiPopup.localPointerHeld = false;
+        uiPopup.localTogglePaused = false;
+        syncPopupHoldState();
+      }
+      if (uiPopup.mode === 'confirm') {
+        if (appRole === 'host') hostHandleAck('HOST');
+        else sendPopupAck();
+      }
+      if (appRole === 'host') closeMovePopupUI();
+      else stopClientPopup();
+    }
+
+    function dismissHostPopupForCurrentTurn() {
+      if (appRole !== 'host' || !['DEALER_CHOICE', 'PLAYING'].includes(hostState.phase)) return;
+      const currentPlayer = hostState.players[hostState.currentTurnIndex];
+      if (!currentPlayer || currentPlayer.id !== 'HOST' || currentPlayer.eliminated) return;
+      dismissMovePopupForCurrentPlayer();
+    }
+
     function startHostPopupCoordinator(move) {
       stopHostPopupCoordinator();
       if (!move || hostState.popupMode === 'off') { scheduleBotIfNeeded(250); return; }
@@ -2133,6 +2154,7 @@
         if (hostPopupCtrl.pendingAcks.size === 0) {
           openMovePopup(move, 'auto', []);
           runAutoPopupTick();
+          dismissHostPopupForCurrentTurn();
           return;
         }
         const pendingNames = Array.from(hostPopupCtrl.pendingAcks.values());
@@ -2142,6 +2164,7 @@
         openMovePopup(move, 'auto', []);
         runAutoPopupTick();
       }
+      dismissHostPopupForCurrentTurn();
     }
 
     function runAutoPopupTick() {
@@ -2472,6 +2495,9 @@
           if (clientState.phase === 'LOBBY' || clientState.phase === 'GAME_OVER' || clientState.popupMode === 'off' || !clientState.lastMove) {
             stopClientPopup();
           }
+          if (['DEALER_CHOICE', 'PLAYING'].includes(clientState.phase) && isMyTurnLocal()) {
+            dismissMovePopupForCurrentPlayer();
+          }
           if (prevPhase !== clientState.phase || !isMyTurnLocal()) {
             selectedHandIdx = null; selectedCenterIdx = null;
           }
@@ -2649,7 +2675,6 @@
       selectedHandIdx = null;
       selectedCenterIdx = null;
       if (appRole === 'host') {
-        if (hostPopupCtrl.activeSeq) return;
         if (action.type === 'DEALER_DECIDE' && hostState.phase === 'DEALER_CHOICE') {
           processDealerDecision('HOST', Boolean(action.keep));
         } else if (hostState.phase === 'PLAYING') {
