@@ -1,7 +1,7 @@
 # Google-AI-Studio-Version – technische Dokumentation
 
 **Artefakt:** [`ai-studio/index.html`](../../ai-studio/index.html)
-**Dokumentationsstand:** 2026-11-15
+**Dokumentationsstand:** 2026-11-16
 **Status:** Beschreibung der vorliegenden Implementierung; bei Abweichungen gilt der Code.
 
 Die gemeinsame Wertung und die versionsübergreifenden Regeln stehen in [Spielregeln](../spielregeln.md). Dieses Dokument beschreibt ausschließlich Besonderheiten der Google-AI-Studio-Version.
@@ -44,7 +44,18 @@ Die Oberfläche enthält außerdem ein Spielprotokoll, Auswahlfeedback für Kart
 
 ## Netzwerk und Host-Wechsel
 
-Die Nachrichten werden über PeerJS-Verbindungen übertragen. Zu den dokumentierten Nachrichtentypen zählen `JOIN`, `ACTION`, `STATE_SYNC`, `ANIM_CONTROL`, `CLAIM_HOST`, `ASSIGN_HOST`, `HOST_MIGRATION_READY` und `MIGRATE_TO_NEW_HOST`.
+Die Nachrichten werden über PeerJS-Verbindungen übertragen. Zu den dokumentierten Nachrichtentypen zählen `JOIN`, `STATE_REQUEST`, `STATE_SYNC`, `ACTION`, `ANIM_CONTROL`, `CLAIM_HOST`, `ASSIGN_HOST`, `HOST_MIGRATION_READY` und `MIGRATE_TO_NEW_HOST`.
+
+### Wiederverbindung nach Netzwerkunterbrechungen
+
+- Host und Clients versuchen nach einem PeerJS-Signaling-Abbruch mit exponentiellem Backoff und derselben Peer-ID erneut zu verbinden. `online`- und `visibilitychange`-Ereignisse lösen beim Zurückkehren in den Browser einen sofortigen erneuten Versuch aus.
+- Bestehende WebRTC-Datenverbindungen werden bei einem reinen Signaling-Abbruch nicht absichtlich geschlossen.
+- Clients senden beim Beitritt ein zufälliges sitzungsgebundenes Wiederbeitritts-Token. Es wird in `sessionStorage` gespeichert, nur an den Host übermittelt und nicht im Spielzustand an andere Spieler verteilt. Der Host ordnet einen erneuten Beitritt dem bestehenden Spieler zu und synchronisiert den aktuellen Zustand.
+- Ein neuer Client wiederholt einen zunächst nicht erreichbaren Raum dreimal, bevor er „Raum nicht gefunden“ meldet. Bei bereits beigetretenen Clients laufen Wiederbeitrittsversuche mit begrenztem Backoff weiter.
+- Ein getrenntes Lobby-Mitglied bleibt bis zu zwei Minuten reserviert. Während eines Spiels erhält ein getrennter Spieler 30 Sekunden zum Wiederbeitritt; danach übernimmt die bestehende Bot-/Autozug-Logik, bis die Verbindung wiederhergestellt ist.
+- Bei Rückkehr in den Vordergrund fordert ein Client den aktuellen Zustand erneut an, wenn seine direkte Datenverbindung noch offen ist.
+- Wenn der PeerJS-Server die Raum-ID nach einem Abbruch noch als belegt führt, behält der Host den Spielzustand und versucht dieselbe ID erneut zu registrieren. Die App startet dafür kein neues Spiel.
+- Diese Wiederherstellung setzt voraus, dass die Host-Seite und ihr Spielzustand im Arbeitsspeicher erhalten bleiben. Wird der Browserprozess beendet oder die Host-Seite neu geladen, gibt es weiterhin keine persistente Spielstand-Wiederherstellung oder automatische Host-Übernahme.
 
 Nach `GAME_OVER` kann die Host-Rolle an einen anderen menschlichen Spieler übergeben werden. Der neue Host eröffnet einen neuen Peer-Raum; die verbundenen Clients wechseln in diesen Raum. Der Host-Wechsel erfolgt erst nach dem Spielende.
 
@@ -64,8 +75,9 @@ Wichtige Verhaltensanforderungen:
 4. In getrennten Browsern oder Geräten beitreten und Kartentausch, Schieben und Klopfen prüfen.
 5. Einen Durchlauf mit `mustSwapFirstRound` und den anderen Hausregel-Kombinationen prüfen.
 6. Nach `GAME_OVER` die Host-Übergabe testen.
-7. Insbesondere auf iPad Safari Karten-Touch, Popup-Bestätigung und Wiederverbindung nach Host-Wechsel prüfen.
-8. Die Sprachauswahl auf Start-, Setup-, Lobby-, Spiel-, Demo-, Popup- und Ergebnisansicht wechseln; zusätzlich prüfen, ob die Auswahl nach einem Neuladen erhalten bleibt.
+7. Auf Android Chrome und iPad Safari zusätzlich folgende Wiederverbindungen prüfen: Host kurz in den Hintergrund wechseln und zurückkehren, WLAN kurz trennen/wiederherstellen sowie einen Client im Hintergrund lassen und erneut aktivieren. Raum-ID, Spielerzahl, Bot-Zustand, aktuelle Runde und Handkarten müssen erhalten bleiben; ein wiederbeitretender Client darf nicht doppelt erscheinen.
+8. Insbesondere auf iPad Safari Karten-Touch und Popup-Bestätigung prüfen.
+9. Die Sprachauswahl auf Start-, Setup-, Lobby-, Spiel-, Demo-, Popup- und Ergebnisansicht wechseln; zusätzlich prüfen, ob die Auswahl nach einem Neuladen erhalten bleibt.
 
 Für die responsive Sichtprüfung mindestens schmale Ansichten ab 320 CSS-Pixel sowie Desktop-Breiten und Hoch- und Querformat testen. Zusätzlich Browser-Zoom und bei iOS die Safe Areas prüfen. Viewport-Emulation in Chromium ersetzt keine Tests auf physischen Android- und Apple-Geräten; iOS Safari, reale Tastaturen, Hintergrundwechsel und herstellerspezifische Energiesparregeln müssen dort separat geprüft werden.
 

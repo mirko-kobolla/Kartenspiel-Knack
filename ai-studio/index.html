@@ -727,8 +727,24 @@
     let clientMyName = '';
     let clientLastMoveSeq = null;
     let clientAutoTickInterval = null;
+    let clientTargetRoomId = '';
+    let clientResumeToken = '';
+    let clientReconnectTimer = null;
+    let clientReconnectAttempts = 0;
+    let clientConnectionPending = false;
+    let clientJoinAccepted = false;
+    let clientAutoMigrate = false;
+    let clientInitialJoinAttempts = 0;
+    let peerReconnectTimer = null;
+    let peerReconnectAttempts = 0;
+    let hostPeerHasOpened = false;
 
     const hostConnections = new Map();
+    const playerDisconnectTimers = new Map();
+    const RECONNECT_GRACE_MS = 30000;
+    const LOBBY_RECONNECT_GRACE_MS = 120000;
+    const RECONNECT_BASE_DELAY_MS = 1000;
+    const RECONNECT_MAX_DELAY_MS = 15000;
 
     const hostState = {
       roomCode: '', roomId: '', phase: 'LOBBY', round: 0, popupMode: 'auto',
@@ -979,6 +995,7 @@
       stopHostPopupCoordinator();
       closeMovePopupUI();
       hostConnections.clear();
+      clearAllPlayerDisconnectTimers();
       clientConn = null;
       clientState = null;
       appRole = 'host';
@@ -1230,7 +1247,7 @@
        ========================================================================== */
     function createPlayerObj(id, name, isBot, isHost) {
       return {
-        id, name, isBot, isHost, connected: true,
+        id, name, isBot, isHost, connected: true, resumeToken: null, reconnectUntil: 0,
         lives: 3, swimming: false, eliminated: false,
         hand: [], eval: null, lostLastRound: false, hasPlayedThisRound: false
       };
@@ -1254,6 +1271,7 @@
       hostState.round = 0;
       hostState.migrationInProgress = false;
       hostState.logs = [];
+      clearAllPlayerDisconnectTimers();
       hostState.players = [createPlayerObj('HOST', name, false, true)];
 
       showScreen('game');
@@ -1261,13 +1279,109 @@
       renderAll();
     }
 
+    function setPeerStatus(message, color) {
+      const status = document.getElementById('ui-peer-status');
+      if (!status) return;
+      status.textContent = message;
+      status.style.color = color || 'var(--text-muted)';
+    }
+
+    function schedulePeerReconnect(peer, immediate = false) {
+      if (peer !== peerInstance || peer.destroyed || !peer.disconnected || peerReconnectTimer) return;
+      const backoff = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * (2 ** peerReconnectAttempts));
+      const delay = immediate ? 0 : Math.round(backoff * (0.75 + Math.random() * 0.5));
+      peerReconnectTimer = setTimeout(() => {
+        peerReconnectTimer = null;
+        if (peer !== peerInstance || peer.destroyed || !peer.disconnected) return;
+        peerReconnectAttempts++;
+        if (appRole === 'host') {
+          setPeerStatus('Signaling-Verbindung unterbrochen – verbinde erneut…', '#fcd34d');
+        } else if (appRole === 'client') {
+          setPeerStatus('Verbindung zum Host wird wiederhergestellt…', '#fcd34d');
+        }
+        try {
+          peer.reconnect();
+        } catch (error) {
+          console.error('PeerJS reconnect failed:', error);
+          schedulePeerReconnect(peer);
+        }
+      }, delay);
+    }
+
+    function handlePeerOpen(peer) {
+      if (peer !== peerInstance) return;
+      clearTimeout(peerReconnectTimer);
+      peerReconnectTimer = null;
+      peerReconnectAttempts = 0;
+      if (appRole === 'host') {
+        hostPeerHasOpened = true;
+        setPeerStatus('Bereit! Mitspieler können mit der Raum-ID beitreten.', '#86efac');
+      } else if (appRole === 'client') {
+        setPeerStatus(clientJoinAccepted && clientConn && clientConn.open ? 'Verbunden!' : 'Verbinde mit Host...', '#fcd34d');
+        if (clientJoinAccepted && clientConn && clientConn.open) requestClientStateSync();
+        else connectClientDataConnection();
+      }
+    }
+
+    function handleNetworkResume() {
+      if (appRole === 'host' && peerInstance && peerInstance.disconnected) {
+        clearTimeout(peerReconnectTimer);
+        peerReconnectTimer = null;
+        schedulePeerReconnect(peerInstance, true);
+      } else if (appRole === 'client' && peerInstance) {
+        if (peerInstance.disconnected) {
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = null;
+          schedulePeerReconnect(peerInstance, true);
+        }
+        else if (peerInstance.open && clientConn && clientConn.open) requestClientStateSync();
+        else if (peerInstance.open) {
+          clearTimeout(clientReconnectTimer);
+          clientReconnectTimer = null;
+          if (clientConn && !clientConn.open) {
+            const pendingConn = clientConn;
+            clientConn = null;
+            try { pendingConn.close(); } catch (error) { console.warn('Could not close stale player connection:', error); }
+          }
+          clientConnectionPending = false;
+          connectClientDataConnection();
+        }
+      }
+    }
+
+    function clearPlayerDisconnectTimer(player) {
+      const timer = playerDisconnectTimers.get(player);
+      if (timer) clearTimeout(timer);
+      playerDisconnectTimers.delete(player);
+    }
+
+    function clearAllPlayerDisconnectTimers() {
+      for (const timer of playerDisconnectTimers.values()) clearTimeout(timer);
+      playerDisconnectTimers.clear();
+    }
+
+    function updateHostPlayerPeerId(player, oldId, newId) {
+      if (oldId === newId) return;
+      if (hostState.knockedBy === oldId) hostState.knockedBy = newId;
+      hostState.knockQueue = hostState.knockQueue.map(id => id === oldId ? newId : id);
+      hostState.eliminationOrder = hostState.eliminationOrder.map(id => id === oldId ? newId : id);
+      for (const map of [hostPopupCtrl.holders, hostPopupCtrl.pendingAcks]) {
+        if (!map.has(oldId)) continue;
+        const value = map.get(oldId);
+        map.delete(oldId);
+        map.set(newId, value);
+      }
+      player.id = newId;
+    }
+
     function setupHostPeer() {
-      const stEl = document.getElementById('ui-peer-status');
-      stEl.textContent = 'Verbinde mit PeerJS-Signaling...';
-      stEl.style.color = 'var(--text-muted)';
+      clearTimeout(peerReconnectTimer);
+      peerReconnectTimer = null;
+      peerReconnectAttempts = 0;
+      hostPeerHasOpened = false;
+      setPeerStatus('Verbinde mit PeerJS-Signaling...');
       if (typeof Peer === 'undefined') {
-        stEl.textContent = 'PeerJS-Bibliothek konnte nicht geladen werden (Internetverbindung prüfen).';
-        stEl.style.color = '#fca5a5';
+        setPeerStatus('PeerJS-Bibliothek konnte nicht geladen werden (Internetverbindung prüfen).', '#fca5a5');
         return;
       }
       peerInstance = new Peer(hostState.roomId);
@@ -1275,37 +1389,51 @@
     }
 
     function attachHostPeerHandlers(peer) {
-      peer.on('open', () => {
-        const stEl = document.getElementById('ui-peer-status');
-        stEl.textContent = 'Bereit! Mitspieler können mit der Raum-ID beitreten.';
-        stEl.style.color = '#86efac';
-      });
+      peer.on('open', () => handlePeerOpen(peer));
+      peer.on('disconnected', () => schedulePeerReconnect(peer));
 
       peer.on('connection', conn => {
-        conn.on('open', () => hostConnections.set(conn.peer, conn));
+        conn.on('open', () => {
+          const previousConn = hostConnections.get(conn.peer);
+          hostConnections.set(conn.peer, conn);
+          if (previousConn && previousConn !== conn) {
+            try { previousConn.close(); } catch (error) { console.warn('Could not close replaced player connection:', error); }
+          }
+        });
         conn.on('data', data => handleHostIncoming(conn, data));
+        conn.on('error', error => {
+          console.warn('Player connection error:', error);
+          if (hostConnections.get(conn.peer) === conn) {
+            try { conn.close(); } catch (closeError) { console.warn('Could not close failed player connection:', closeError); }
+          }
+        });
         conn.on('close', () => {
+          if (hostConnections.get(conn.peer) !== conn) return;
           hostConnections.delete(conn.peer);
           if (hostState.migrationInProgress) return;
           const p = hostState.players.find(pl => pl.id === conn.peer);
           if (p) {
+            p.connected = false;
+            p.reconnectUntil = Date.now() + RECONNECT_GRACE_MS;
+            addHostLog(`${p.name} hat die Verbindung verloren.`);
+            if (hostPopupCtrl.activeSeq) {
+              hostSetHold(conn.peer, p.name, false);
+              hostHandleAck(conn.peer);
+            }
             if (hostState.phase === 'LOBBY') {
-              hostState.players = hostState.players.filter(pl => pl.id !== conn.peer);
+              clearPlayerDisconnectTimer(p);
+              const disconnectId = p.id;
+              const timer = setTimeout(() => {
+                if (playerDisconnectTimers.get(p) !== timer) return;
+                playerDisconnectTimers.delete(p);
+                if (p.connected || p.id !== disconnectId || hostState.phase !== 'LOBBY') return;
+                hostState.players = hostState.players.filter(pl => pl !== p);
+                broadcastHostState();
+                renderAll();
+              }, LOBBY_RECONNECT_GRACE_MS);
+              playerDisconnectTimers.set(p, timer);
             } else {
-              p.connected = false;
-              addHostLog(`${p.name} hat die Verbindung verloren.`);
-              if (hostPopupCtrl.activeSeq) {
-                hostSetHold(conn.peer, p.name, false);
-                hostHandleAck(conn.peer);
-              }
-              const dealer = hostState.players[hostState.dealerIndex];
-              const turnPlayer = hostState.players[hostState.currentTurnIndex];
-              if (hostState.phase === 'DEALER_CHOICE' && dealer && dealer.id === p.id) {
-                processDealerDecision(p.id, true);
-              } else if (hostState.phase === 'PLAYING' && turnPlayer && turnPlayer.id === p.id) {
-                const mustSwap = hostState.rules.mustSwapFirstRound && !p.hasPlayedThisRound;
-                processPlayAction(p.id, mustSwap ? { type: 'SWAP_ONE', handIdx: 0, centerIdx: 0 } : { type: 'PASS' });
-              }
+              scheduleBotIfNeeded(RECONNECT_GRACE_MS);
             }
             broadcastHostState();
             renderAll();
@@ -1314,41 +1442,76 @@
       });
 
       peer.on('error', err => {
-        if (err.type === 'unavailable-id' && hostState.phase === 'LOBBY') {
+        if (err.type === 'unavailable-id' && !hostPeerHasOpened && hostState.phase === 'LOBBY') {
           const newCode = String(Math.floor(1000 + Math.random() * 9000));
           hostState.roomCode = newCode;
           hostState.roomId = 'KNACK-' + newCode;
           try { peer.destroy(); } catch (e) {}
           setupHostPeer();
           renderAll();
+        } else if (err.type === 'unavailable-id') {
+          setPeerStatus('Raum-ID ist noch belegt – erneuter Verbindungsversuch…', '#fcd34d');
+          schedulePeerReconnect(peer);
+        } else if (err.type === 'network') {
+          setPeerStatus('Signaling-Verbindung unterbrochen – verbinde erneut…', '#fcd34d');
+          schedulePeerReconnect(peer);
         } else {
-          const stEl = document.getElementById('ui-peer-status');
-          stEl.textContent = 'PeerJS-Fehler: ' + err.type;
-          stEl.style.color = '#fca5a5';
+          setPeerStatus('PeerJS-Fehler: ' + err.type, '#fca5a5');
         }
       });
     }
 
     function handleHostIncoming(conn, msg) {
       if (!msg || typeof msg !== 'object') return;
+      if (hostConnections.get(conn.peer) !== conn) return;
 
       if (msg.type === 'JOIN') {
         const cleanName = String(msg.name || '').trim().slice(0, 16);
         if (!cleanName) { conn.send({ type: 'JOIN_ERROR', message: 'Bitte gültigen Namen eingeben.' }); return; }
 
+        const resumeToken = typeof msg.resumeToken === 'string' && /^[a-f0-9]{32}$/.test(msg.resumeToken) ? msg.resumeToken : '';
+        const existingByToken = resumeToken && hostState.players.find(p => !p.isBot && p.resumeToken === resumeToken);
+        if (existingByToken) {
+          const oldId = existingByToken.id;
+          const oldConn = hostConnections.get(oldId);
+          clearPlayerDisconnectTimer(existingByToken);
+          updateHostPlayerPeerId(existingByToken, oldId, conn.peer);
+          existingByToken.resumeToken = resumeToken;
+          existingByToken.connected = true;
+          existingByToken.reconnectUntil = 0;
+          hostConnections.set(conn.peer, conn);
+          if (oldConn && oldConn !== conn) {
+            if (hostConnections.get(oldId) === oldConn) hostConnections.delete(oldId);
+            try { oldConn.close(); } catch (error) { console.warn('Could not close replaced player connection:', error); }
+          }
+          addHostLog(`${existingByToken.name} ist wieder verbunden.`);
+          conn.send({ type: 'JOIN_OK', playerId: conn.peer, name: existingByToken.name });
+          broadcastHostState();
+          renderAll();
+          scheduleBotIfNeeded();
+          return;
+        }
+
         const existingByName = hostState.players.find(p => !p.isBot && p.name.toLowerCase() === cleanName.toLowerCase());
         if (existingByName) {
           if (!existingByName.connected) {
             const oldId = existingByName.id;
-            existingByName.id = conn.peer;
+            const oldConn = hostConnections.get(oldId);
+            clearPlayerDisconnectTimer(existingByName);
+            updateHostPlayerPeerId(existingByName, oldId, conn.peer);
+            existingByName.resumeToken = resumeToken || existingByName.resumeToken;
             existingByName.connected = true;
-            if (hostState.knockedBy === oldId) hostState.knockedBy = conn.peer;
-            hostState.knockQueue = hostState.knockQueue.map(id => (id === oldId ? conn.peer : id));
-            hostState.eliminationOrder = hostState.eliminationOrder.map(id => (id === oldId ? conn.peer : id));
+            existingByName.reconnectUntil = 0;
+            hostConnections.set(conn.peer, conn);
+            if (oldConn && oldConn !== conn) {
+              if (hostConnections.get(oldId) === oldConn) hostConnections.delete(oldId);
+              try { oldConn.close(); } catch (error) { console.warn('Could not close replaced player connection:', error); }
+            }
             addHostLog(`${existingByName.name} ist wieder verbunden.`);
             conn.send({ type: 'JOIN_OK', playerId: conn.peer, name: existingByName.name });
             broadcastHostState();
             renderAll();
+            scheduleBotIfNeeded();
             return;
           } else {
             conn.send({ type: 'JOIN_ERROR', message: 'Dieser Name ist bereits vergeben.' });
@@ -1359,10 +1522,26 @@
         if (hostState.phase !== 'LOBBY') { conn.send({ type: 'JOIN_ERROR', message: 'Das Spiel läuft bereits.' }); return; }
         if (hostState.players.length >= 8) { conn.send({ type: 'JOIN_ERROR', message: 'Der Raum ist voll (max. 8 Spieler).' }); return; }
 
-        hostState.players.push(createPlayerObj(conn.peer, cleanName, false, false));
+        const player = createPlayerObj(conn.peer, cleanName, false, false);
+        player.resumeToken = resumeToken;
+        player.reconnectUntil = 0;
+        hostState.players.push(player);
         conn.send({ type: 'JOIN_OK', playerId: conn.peer, name: cleanName });
         broadcastHostState();
         renderAll();
+        return;
+      }
+
+      if (msg.type === 'STATE_REQUEST') {
+        const player = hostState.players.find(p => p.id === conn.peer && !p.isBot);
+        if (player && (player.connected || !player.resumeToken || player.resumeToken === msg.resumeToken)) {
+          player.connected = true;
+          player.reconnectUntil = 0;
+          clearPlayerDisconnectTimer(player);
+          broadcastHostState();
+          renderAll();
+          scheduleBotIfNeeded();
+        }
         return;
       }
 
@@ -1472,6 +1651,8 @@
       if (appRole !== 'host' || hostState.phase !== 'LOBBY' || playerId === 'HOST') return;
       const conn = hostConnections.get(playerId);
       if (conn) { try { conn.send({ type: 'JOIN_ERROR', message: 'Vom Host entfernt.' }); conn.close(); } catch (e) {} }
+      const removedPlayer = hostState.players.find(p => p.id === playerId);
+      if (removedPlayer) clearPlayerDisconnectTimer(removedPlayer);
       hostState.players = hostState.players.filter(p => p.id !== playerId);
       broadcastHostState();
       renderAll();
@@ -1797,17 +1978,21 @@
       if (hostState.phase === 'DEALER_CHOICE') {
         const dealer = hostState.players[hostState.dealerIndex];
         if (dealer && (dealer.isBot || !dealer.connected)) {
+          const graceWait = dealer.isBot ? 0 : Math.max(0, (dealer.reconnectUntil || 0) - Date.now());
           botTimer = setTimeout(() => {
+            if (!dealer.isBot && dealer.connected) return;
             const ev = evaluateHand(dealer.hand, hostState.rules.fireEnabled);
             const keepHand = ev.score >= 20;
             if (demoMode) demoNextExplanation = buildDemoDealerExplanation(dealer, keepHand);
             processDealerDecision(dealer.id, keepHand);
-          }, waitTime);
+          }, Math.max(waitTime, graceWait));
         }
       } else if (hostState.phase === 'PLAYING') {
         const cp = hostState.players[hostState.currentTurnIndex];
         if (cp && (cp.isBot || !cp.connected)) {
+          const graceWait = cp.isBot ? 0 : Math.max(0, (cp.reconnectUntil || 0) - Date.now());
           botTimer = setTimeout(() => {
+            if (!cp.isBot && cp.connected) return;
             if (!cp.connected) {
               const mustSwap = hostState.rules.mustSwapFirstRound && !cp.hasPlayedThisRound;
               processPlayAction(cp.id, mustSwap ? { type: 'SWAP_ONE', handIdx: 0, centerIdx: 0 } : { type: 'PASS' });
@@ -1816,7 +2001,7 @@
             const action = chooseBotAction(cp);
             if (demoMode) demoNextExplanation = buildDemoBotExplanation(cp, action);
             processPlayAction(cp.id, action);
-          }, waitTime);
+          }, Math.max(waitTime, graceWait));
         }
       }
     }
@@ -2080,91 +2265,254 @@
       btn.disabled = true; btn.textContent = 'Verbinde...';
       appRole = 'client';
       clientMyName = name;
+      clientResumeToken = getClientResumeToken();
+      clientInitialJoinAttempts = 0;
+      clientReconnectAttempts = 0;
       connectClientToRoom(digits, name, false);
     }
 
-    function connectClientToRoom(digits, name, isAutoMigrate, retryCount = 0) {
+    function getClientResumeToken() {
+      if (clientResumeToken) return clientResumeToken;
+      const storageKey = 'knack-player-resume-token';
+      try {
+        const storedToken = sessionStorage.getItem(storageKey);
+        if (storedToken && /^[a-f0-9]{32}$/.test(storedToken)) {
+          clientResumeToken = storedToken;
+          return clientResumeToken;
+        }
+      } catch (error) {
+        console.warn('Could not read the player resume token:', error);
+      }
+
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      clientResumeToken = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+      try {
+        sessionStorage.setItem(storageKey, clientResumeToken);
+      } catch (error) {
+        console.warn('Could not save the player resume token:', error);
+      }
+      return clientResumeToken;
+    }
+
+    function connectClientToRoom(digits, name, isAutoMigrate) {
       const targetRoomId = 'KNACK-' + digits;
-      const errEl = document.getElementById('client-join-error');
-      const btn = document.getElementById('client-join-btn');
 
-      if (peerInstance) { try { peerInstance.destroy(); } catch (e) {} }
-      peerInstance = new Peer();
+      if (peerInstance && clientTargetRoomId && clientTargetRoomId !== targetRoomId) {
+        clearTimeout(peerReconnectTimer);
+        clearTimeout(clientReconnectTimer);
+        peerReconnectTimer = null;
+        clientReconnectTimer = null;
+        try { peerInstance.destroy(); } catch (error) { console.warn('Could not close the previous peer:', error); }
+        peerInstance = null;
+        clientConn = null;
+        clientConnectionPending = false;
+        clientJoinAccepted = false;
+        clientInitialJoinAttempts = 0;
+        clientReconnectAttempts = 0;
+      }
 
-      peerInstance.on('open', () => {
-        clientConn = peerInstance.connect(targetRoomId, { reliable: true });
-        clientConn.on('open', () => {
-          clientConn.send({ type: 'JOIN', name });
-        });
-        clientConn.on('data', msg => {
-          if (!msg || typeof msg !== 'object') return;
-          if (msg.type === 'JOIN_ERROR') {
-            if (isAutoMigrate) {
-              showToast(msg.message || 'Host-Wechsel fehlgeschlagen.');
-              showScreen('client-join');
-            } else {
-              errEl.textContent = msg.message || 'Beitritt fehlgeschlagen.';
-              btn.disabled = false; btn.textContent = 'Beitreten';
-            }
-          } else if (msg.type === 'JOIN_OK') {
-            showScreen('game');
-            document.getElementById('ui-peer-status').textContent = 'Verbunden!';
-            document.getElementById('ui-peer-status').style.color = '#86efac';
-            btn.disabled = false; btn.textContent = 'Beitreten';
-          } else if (msg.type === 'ANIM_CONTROL') {
-            handleClientAnimControl(msg.ctrl);
-          } else if (msg.type === 'ASSIGN_HOST') {
-            becomeNewHostFromClient();
-          } else if (msg.type === 'MIGRATE_TO_NEW_HOST') {
-            const newDigits = String(msg.newRoomId || '').replace(/^KNACK-/, '');
-            showToast(`Neuer Host: ${msg.newHostName} – wechsle Raum...`);
-            stopClientPopup();
-            clientState = null;
-            clientLastMoveSeq = null;
-            selectedHandIdx = null;
-            selectedCenterIdx = null;
-            try { if (clientConn) clientConn.close(); } catch (e) {}
-            try { if (peerInstance) peerInstance.destroy(); } catch (e) {}
-            peerInstance = null;
-            setTimeout(() => connectClientToRoom(newDigits, clientMyName, true), 350);
-          } else if (msg.type === 'STATE_SYNC') {
-            const prevPhase = clientState ? clientState.phase : null;
-            clientState = msg.state;
-            const incomingSeq = clientState.lastMove ? clientState.lastMove.seq : 0;
-            if (clientLastMoveSeq === null) {
-              clientLastMoveSeq = incomingSeq;
-            } else if (incomingSeq > clientLastMoveSeq) {
-              clientLastMoveSeq = incomingSeq;
-              if (clientState.popupMode !== 'off') {
-                startClientPopup(clientState.lastMove, clientState.popupMode, clientState.pendingAckNames || []);
-              }
-            }
-            if (clientState.phase === 'LOBBY' || clientState.phase === 'GAME_OVER' || clientState.popupMode === 'off' || !clientState.lastMove) {
-              stopClientPopup();
-            }
-            if (prevPhase !== clientState.phase || !isMyTurnLocal()) {
-              selectedHandIdx = null; selectedCenterIdx = null;
-            }
-            renderAll();
-          }
-        });
-        clientConn.on('close', () => {
-          if (appRole === 'client' && clientState) showToast('Verbindung zum Host getrennt.');
-        });
+      clientTargetRoomId = targetRoomId;
+      clientMyName = name;
+      clientAutoMigrate = isAutoMigrate;
+      clientResumeToken = getClientResumeToken();
+      if (!peerInstance || peerInstance.destroyed) {
+        peerInstance = new Peer();
+        attachClientPeerHandlers(peerInstance);
+      } else if (peerInstance.open) {
+        connectClientDataConnection();
+      }
+      setPeerStatus('Verbinde...', 'var(--text-muted)');
+    }
+
+    function attachClientPeerHandlers(peer) {
+      peer.on('open', () => handlePeerOpen(peer));
+      peer.on('disconnected', () => {
+        if (peer !== peerInstance) return;
+        if (clientConn && !clientConn.open) {
+          const pendingConn = clientConn;
+          clientConn = null;
+          clientConnectionPending = false;
+          try { pendingConn.close(); } catch (error) { console.warn('Could not close pending player connection:', error); }
+        }
+        schedulePeerReconnect(peer);
       });
-
-      peerInstance.on('error', err => {
-        if (isAutoMigrate && err.type === 'peer-unavailable' && retryCount < 3) {
-          setTimeout(() => connectClientToRoom(digits, name, true, retryCount + 1), 600);
+      peer.on('error', err => {
+        if (peer !== peerInstance) return;
+        if (err.type === 'network') {
+          if (clientConn && !clientConn.open) {
+            const pendingConn = clientConn;
+            clientConn = null;
+            clientConnectionPending = false;
+            try { pendingConn.close(); } catch (error) { console.warn('Could not close pending player connection:', error); }
+          }
+          setPeerStatus('Verbindung zum Host wird wiederhergestellt…', '#fcd34d');
+          schedulePeerReconnect(peer);
           return;
         }
-        if (isAutoMigrate) {
-          showToast('Konnte neuem Host nicht beitreten.');
-        } else {
-          errEl.textContent = err.type === 'peer-unavailable' ? 'Raum nicht gefunden. Prüfe die 4-stellige Nummer.' : 'Verbindungsfehler: ' + err.type;
+        if (err.type === 'peer-unavailable') {
+          clientConnectionPending = false;
+          if (clientConn && !clientConn.open) {
+            try { clientConn.close(); } catch (error) { console.warn('Could not close failed connection:', error); }
+            clientConn = null;
+          }
+          if (clientJoinAccepted || clientAutoMigrate || clientInitialJoinAttempts < 3) {
+            if (!clientJoinAccepted && !clientAutoMigrate) {
+              setPeerStatus('Raum noch nicht erreichbar – versuche erneut…', '#fcd34d');
+            }
+            scheduleClientDataReconnect();
+          } else {
+            const errEl = document.getElementById('client-join-error');
+            errEl.textContent = 'Raum nicht gefunden. Prüfe die 4-stellige Nummer.';
+            const btn = document.getElementById('client-join-btn');
+            btn.disabled = false; btn.textContent = 'Beitreten';
+          }
+          return;
+        }
+        setPeerStatus('PeerJS-Fehler: ' + err.type, '#fca5a5');
+        if (clientAutoMigrate) showToast('Konnte neuem Host nicht beitreten.');
+        else if (!clientJoinAccepted) {
+          const errEl = document.getElementById('client-join-error');
+          errEl.textContent = 'Verbindungsfehler: ' + err.type;
+          const btn = document.getElementById('client-join-btn');
           btn.disabled = false; btn.textContent = 'Beitreten';
         }
       });
+    }
+
+    function scheduleClientDataReconnect(immediate = false) {
+      if (appRole !== 'client' || (!clientJoinAccepted && !clientAutoMigrate && clientInitialJoinAttempts >= 3) || clientReconnectTimer) return;
+      const backoff = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * (2 ** clientReconnectAttempts));
+      const delay = immediate ? 0 : Math.round(backoff * (0.75 + Math.random() * 0.5));
+      clientReconnectTimer = setTimeout(() => {
+        clientReconnectTimer = null;
+        if (appRole !== 'client' || (!clientJoinAccepted && !clientAutoMigrate && clientInitialJoinAttempts >= 3)) return;
+        clientReconnectAttempts++;
+        if (!clientJoinAccepted && !clientAutoMigrate) clientInitialJoinAttempts++;
+        if (peerInstance && peerInstance.disconnected) {
+          schedulePeerReconnect(peerInstance, true);
+        } else if (peerInstance && peerInstance.open) {
+          connectClientDataConnection();
+        }
+      }, delay);
+    }
+
+    function connectClientDataConnection() {
+      if (appRole !== 'client' || !peerInstance || !peerInstance.open || clientConnectionPending || (clientConn && clientConn.open)) return;
+      clearTimeout(clientReconnectTimer);
+      clientReconnectTimer = null;
+      clientConnectionPending = true;
+      const conn = peerInstance.connect(clientTargetRoomId, { reliable: true });
+      clientConn = conn;
+
+      conn.on('open', () => {
+        if (clientConn !== conn) return;
+        clientConnectionPending = false;
+        conn.send({ type: 'JOIN', name: clientMyName, resumeToken: clientResumeToken });
+      });
+      conn.on('data', msg => {
+        if (clientConn !== conn || !msg || typeof msg !== 'object') return;
+        if (msg.type === 'JOIN_ERROR') {
+          clientJoinAccepted = false;
+          clientConnectionPending = false;
+          if (clientConn === conn) clientConn = null;
+          try { conn.close(); } catch (error) { console.warn('Could not close rejected connection:', error); }
+          if (clientAutoMigrate) {
+            showToast(msg.message || 'Host-Wechsel fehlgeschlagen.');
+            showScreen('client-join');
+          } else {
+            document.getElementById('client-join-error').textContent = msg.message || 'Beitritt fehlgeschlagen.';
+            const btn = document.getElementById('client-join-btn');
+            btn.disabled = false; btn.textContent = 'Beitreten';
+          }
+        } else if (msg.type === 'JOIN_OK') {
+          clientJoinAccepted = true;
+          clientReconnectAttempts = 0;
+          clientInitialJoinAttempts = 0;
+          clientMyName = msg.name || clientMyName;
+          showScreen('game');
+          setPeerStatus('Verbunden!', '#86efac');
+          const btn = document.getElementById('client-join-btn');
+          btn.disabled = false; btn.textContent = 'Beitreten';
+        } else if (msg.type === 'ANIM_CONTROL') {
+          handleClientAnimControl(msg.ctrl);
+        } else if (msg.type === 'ASSIGN_HOST') {
+          becomeNewHostFromClient();
+        } else if (msg.type === 'MIGRATE_TO_NEW_HOST') {
+          const newDigits = String(msg.newRoomId || '').replace(/^KNACK-/, '');
+          showToast(`Neuer Host: ${msg.newHostName} – wechsle Raum...`);
+          stopClientPopup();
+          clientState = null;
+          clientLastMoveSeq = null;
+          selectedHandIdx = null;
+          selectedCenterIdx = null;
+          clientJoinAccepted = false;
+          clearTimeout(peerReconnectTimer);
+          clearTimeout(clientReconnectTimer);
+          peerReconnectTimer = null;
+          clientReconnectTimer = null;
+          try { conn.close(); } catch (error) { console.warn('Could not close old host connection:', error); }
+          try { if (peerInstance) peerInstance.destroy(); } catch (error) { console.warn('Could not close old host peer:', error); }
+          peerInstance = null;
+          clientConn = null;
+          clientConnectionPending = false;
+          setTimeout(() => connectClientToRoom(newDigits, clientMyName, true), 350);
+        } else if (msg.type === 'STATE_SYNC') {
+          const prevPhase = clientState ? clientState.phase : null;
+          clientState = msg.state;
+          const incomingSeq = clientState.lastMove ? clientState.lastMove.seq : 0;
+          if (clientLastMoveSeq === null) {
+            clientLastMoveSeq = incomingSeq;
+          } else if (incomingSeq > clientLastMoveSeq) {
+            clientLastMoveSeq = incomingSeq;
+            if (clientState.popupMode !== 'off') {
+              startClientPopup(clientState.lastMove, clientState.popupMode, clientState.pendingAckNames || []);
+            }
+          }
+          if (clientState.phase === 'LOBBY' || clientState.phase === 'GAME_OVER' || clientState.popupMode === 'off' || !clientState.lastMove) {
+            stopClientPopup();
+          }
+          if (prevPhase !== clientState.phase || !isMyTurnLocal()) {
+            selectedHandIdx = null; selectedCenterIdx = null;
+          }
+          renderAll();
+        }
+      });
+      conn.on('close', () => {
+        if (clientConn !== conn) return;
+        clientConn = null;
+        clientConnectionPending = false;
+        if (appRole === 'client' && clientJoinAccepted) {
+          setPeerStatus('Verbindung zum Host wird wiederhergestellt…', '#fcd34d');
+          scheduleClientDataReconnect();
+        }
+      });
+      conn.on('error', error => {
+        if (clientConn !== conn) return;
+        console.warn('Player connection error:', error);
+        clientConn = null;
+        clientConnectionPending = false;
+        try { conn.close(); } catch (closeError) { console.warn('Could not close failed player connection:', closeError); }
+        if (appRole === 'client' && clientJoinAccepted) {
+          setPeerStatus('Verbindung zum Host wird wiederhergestellt…', '#fcd34d');
+          scheduleClientDataReconnect();
+        } else if (appRole === 'client') {
+          const errEl = document.getElementById('client-join-error');
+          const errorType = error && error.type ? error.type : 'WebRTC';
+          errEl.textContent = 'Verbindungsfehler: ' + errorType;
+          const btn = document.getElementById('client-join-btn');
+          btn.disabled = false; btn.textContent = 'Beitreten';
+        }
+      });
+    }
+
+    function requestClientStateSync() {
+      if (appRole !== 'client' || !clientJoinAccepted || !clientConn || !clientConn.open) return;
+      try {
+        clientConn.send({ type: 'STATE_REQUEST', resumeToken: clientResumeToken });
+      } catch (error) {
+        console.error('Could not request the current game state:', error);
+      }
     }
 
     function requestBecomeHost() {
@@ -2214,11 +2562,13 @@
           hostState.lastMove = null;
           hostState.migrationInProgress = false;
           hostState.logs = [];
+          clearAllPlayerDisconnectTimers();
           hostState.players = [
             createPlayerObj('HOST', myName, false, true),
             ...savedBots.map(b => createPlayerObj(b.id, b.name, true, false))
           ];
 
+          hostPeerHasOpened = true;
           attachHostPeerHandlers(newHostPeer);
           showScreen('game');
           renderAll();
@@ -2426,7 +2776,8 @@
           if (p.isHost) cls.push('is-host');
           const icon = p.isHost ? '👑' : (p.isBot ? '🤖' : '👤');
           const remBtn = (isHost && p.id !== 'HOST') ? `<button type="button" class="chip-remove" onclick="hostRemoveLobbyPlayer('${p.id}')" title="Entfernen">×</button>` : '';
-          return `<div class="${cls.join(' ')}"><span>${icon} ${escapeHtml(p.name)}${p.id === st.myId ? ' (Du)' : ''}</span>${remBtn}</div>`;
+          const connectionStatus = !p.connected && !p.isBot ? ' – verbindet erneut…' : '';
+          return `<div class="${cls.join(' ')}"><span>${icon} ${escapeHtml(p.name)}${p.id === st.myId ? ' (Du)' : ''}${connectionStatus}</span>${remBtn}</div>`;
         }).join('');
 
         const ruleRow = (title, desc, btnText, isOn, handler) => {
@@ -2467,7 +2818,7 @@
         if (p.isTurn) cls.push('active-turn');
         if (p.id === st.myId) cls.push('is-me');
         if (p.eliminated) cls.push('eliminated');
-        const statusTxt = p.eliminated ? 'Raus' : (p.swimming ? '🌊' : `${p.lives}♥`);
+        const statusTxt = !p.connected && !p.isBot ? 'Verbindung…' : (p.eliminated ? 'Raus' : (p.swimming ? '🌊' : `${p.lives}♥`));
         const prefix = demoMode ? '🤖 ' : (p.isHost ? '👑 ' : (p.isDealer ? '🃏 ' : ''));
         const isLocalHuman = p.id === st.myId && !demoMode;
         return `<div class="${cls.join(' ')}"><span>${prefix}${escapeHtml(p.name)}${isLocalHuman ? ' (Du)' : ''}</span><span style="color:var(--accent);">${statusTxt}</span></div>`;
@@ -2700,6 +3051,12 @@
       'Verbinde mit PeerJS-Signaling...': ['Connecting to PeerJS signaling...', 'Connexion au serveur de signalisation PeerJS...', 'Conectando con la señalización de PeerJS...', 'Connessione al signaling PeerJS...'],
       'PeerJS-Bibliothek konnte nicht geladen werden (Internetverbindung prüfen).': ['Could not load the PeerJS library (check your internet connection).', 'Impossible de charger la bibliothèque PeerJS (vérifiez votre connexion Internet).', 'No se pudo cargar PeerJS (comprueba la conexión a Internet).', 'Impossibile caricare PeerJS (controlla la connessione Internet).'],
       'Bereit! Mitspieler können mit der Raum-ID beitreten.': ['Ready! Players can join with the room ID.', 'Prêt ! Les joueurs peuvent rejoindre avec l’identifiant de salle.', '¡Listo! Los jugadores pueden unirse con el ID de sala.', 'Pronto! I giocatori possono entrare con l’ID stanza.'],
+      'Signaling-Verbindung unterbrochen – verbinde erneut…': ['Signaling connection lost — reconnecting…', 'Connexion de signalisation interrompue — reconnexion…', 'Se perdió la señalización — reconectando…', 'Segnalazione interrotta — riconnessione…'],
+      'Raum-ID ist noch belegt – erneuter Verbindungsversuch…': ['Room ID is still reserved — retrying…', 'Identifiant de salle encore réservé — nouvelle tentative…', 'El ID de sala sigue reservado — reintentando…', 'ID stanza ancora occupato — nuovo tentativo…'],
+      'Raum noch nicht erreichbar – versuche erneut…': ['Room not available yet — retrying…', 'Salle pas encore disponible — nouvelle tentative…', 'La sala aún no está disponible — reintentando…', 'Stanza non ancora disponibile — nuovo tentativo…'],
+      'Verbindung zum Host wird wiederhergestellt…': ['Reconnecting to host…', 'Reconnexion à l’hôte…', 'Reconectando con el anfitrión…', 'Riconnessione all’host…'],
+      'Verbinde mit Host...': ['Connecting to host...', 'Connexion à l’hôte...', 'Conectando con el anfitrión...', 'Connessione all’host...'],
+      'Verbindung…': ['Reconnecting…', 'Reconnexion…', 'Reconectando…', 'Riconnessione…'],
       'PeerJS konnte nicht geladen werden (Internet prüfen).': ['Could not load PeerJS (check your internet connection).', 'Impossible de charger PeerJS (vérifiez votre connexion Internet).', 'No se pudo cargar PeerJS (comprueba Internet).', 'Impossibile caricare PeerJS (controlla Internet).'],
       'Verbinde...': ['Connecting...', 'Connexion...', 'Conectando...', 'Connessione...'],
       'Verbunden!': ['Connected!', 'Connecté !', '¡Conectado!', 'Connesso!'],
@@ -2929,6 +3286,9 @@
     function translateDynamicText(source, language) {
       const index = LANGUAGE_INDEX[language] - 1;
       let match;
+      if ((match = source.match(/^(.*) – verbindet erneut…$/))) {
+        return `${match[1]} ${['– reconnecting…', '– reconnexion…', '– reconectando…', '– riconnessione…'][index]}`;
+      }
       if ((match = source.match(/^Runde (\d+)$/))) {
         return [`Round ${match[1]}`, `Manche ${match[1]}`, `Ronda ${match[1]}`, `Round ${match[1]}`][index];
       }
@@ -3271,6 +3631,11 @@
       });
       observer.observe(document.body, { childList: true, characterData: true, subtree: true });
     }
+
+    window.addEventListener('online', handleNetworkResume);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) handleNetworkResume();
+    });
 
     initializeLanguage();
 
