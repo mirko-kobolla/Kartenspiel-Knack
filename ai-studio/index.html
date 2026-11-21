@@ -45,8 +45,15 @@
       cursor: pointer; border: none; outline: none;
       transition: transform 0.1s ease, opacity 0.15s ease, background-color 0.15s ease;
     }
-    button:active:not(:disabled) { transform: scale(0.97); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:active:not(:disabled):not([aria-disabled="true"]),
+    button.btn-locked:active { transform: scale(0.97); }
+    button:disabled,
+    button.btn-inactive[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+    button.btn-locked[aria-disabled="true"] {
+      opacity: 0.68;
+      border-style: dashed;
+      cursor: not-allowed;
+    }
     input { font-family: inherit; outline: none; }
     .hidden { display: none !important; }
 
@@ -353,9 +360,12 @@
 
     .action-dock {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 16px; padding: 12px;
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 16px;
+      padding: 12px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+      margin-bottom: 8px;
     }
-    .action-dock .btn { padding: 15px 10px; font-size: 0.98rem; min-height: 56px; }
+    .action-dock .btn { padding: 15px 10px; font-size: 0.98rem; min-height: 56px; touch-action: manipulation; }
 
     .dealer-choice-box {
       background: rgba(56, 189, 248, 0.1); border: 2px solid var(--accent); border-radius: 16px;
@@ -497,7 +507,11 @@
 
     @media (max-width: 860px) {
       .role-grid, .lobby-grid, .tables-grid { grid-template-columns: 1fr; }
-      .action-dock { grid-template-columns: repeat(2, 1fr); }
+      .action-dock {
+        grid-template-columns: repeat(2, 1fr);
+        padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+        margin-bottom: 8px;
+      }
       .playing-card { width: 84px; height: 124px; }
       .swap-lane { grid-template-columns: 74px 1fr 74px; padding: 10px; }
     }
@@ -683,8 +697,8 @@
         <div class="action-dock">
           <button type="button" class="btn btn-primary" id="btn-swap-one" onclick="actionSwapOne()" disabled>1 Karte tauschen</button>
           <button type="button" class="btn btn-primary" id="btn-swap-all" onclick="actionSwapAll()" disabled>Alle 3 tauschen</button>
-          <button type="button" class="btn" id="btn-pass" onclick="actionPass()" disabled>Schieben</button>
-          <button type="button" class="btn btn-amber" id="btn-knock" onclick="actionKnock()" disabled>Klopfen (Knack!)</button>
+          <button type="button" class="btn btn-inactive" id="btn-pass" onclick="actionPass()" aria-disabled="true">Schieben</button>
+          <button type="button" class="btn btn-amber btn-inactive" id="btn-knock" onclick="actionKnock()" aria-disabled="true">Klopfen (Knack!)</button>
         </div>
       </div>
 
@@ -2706,8 +2720,39 @@
       }
     }
     function actionSwapAll() { dispatchPlayerAction({ type: 'SWAP_ALL' }); }
-    function actionPass() { dispatchPlayerAction({ type: 'PASS' }); }
-    function actionKnock() { dispatchPlayerAction({ type: 'KNOCK' }); }
+    function actionPass() {
+      const st = getLocalViewState();
+      if (demoMode || !st || st.phase !== 'PLAYING' || !isMyTurnLocal()) {
+        showToast('Du bist gerade nicht am Zug.');
+        return;
+      }
+      const me = st.players.find(p => p.id === st.myId);
+      const mustSwapFirst = Boolean(st.rules.mustSwapFirstRound && me && !me.hasPlayedThisRound);
+      if (mustSwapFirst) {
+        showToast('1. Umlauf: Tauschpflicht! Bitte 1 oder alle 3 Karten tauschen.');
+        return;
+      }
+      dispatchPlayerAction({ type: 'PASS' });
+    }
+
+    function actionKnock() {
+      const st = getLocalViewState();
+      if (demoMode || !st || st.phase !== 'PLAYING' || !isMyTurnLocal()) {
+        showToast('Du bist gerade nicht am Zug.');
+        return;
+      }
+      const me = st.players.find(p => p.id === st.myId);
+      const mustSwapFirst = Boolean(st.rules.mustSwapFirstRound && me && !me.hasPlayedThisRound);
+      if (mustSwapFirst) {
+        showToast('1. Umlauf: Tauschpflicht! Bitte 1 oder alle 3 Karten tauschen.');
+        return;
+      }
+      if (st.knockedBy !== null) {
+        showToast('Es wurde in dieser Runde bereits geklopft!');
+        return;
+      }
+      dispatchPlayerAction({ type: 'KNOCK' });
+    }
 
     function openLogModal() {
       const st = getLocalViewState();
@@ -2957,8 +3002,41 @@
       }
 
       document.getElementById('btn-swap-all').disabled = !canSelectCards;
-      document.getElementById('btn-pass').disabled = !canSelectCards || mustSwapFirst;
-      document.getElementById('btn-knock').disabled = !(canSelectCards && !mustSwapFirst && st.knockedBy === null);
+      const passBtn = document.getElementById('btn-pass');
+      passBtn.disabled = false;
+      if (!canSelectCards) {
+        passBtn.className = 'btn btn-inactive';
+        passBtn.setAttribute('aria-disabled', 'true');
+        passBtn.textContent = 'Schieben';
+      } else if (mustSwapFirst) {
+        passBtn.className = 'btn btn-locked';
+        passBtn.setAttribute('aria-disabled', 'true');
+        passBtn.textContent = '🔒 Schieben (1. Umlauf)';
+      } else {
+        passBtn.className = 'btn';
+        passBtn.removeAttribute('aria-disabled');
+        passBtn.textContent = 'Schieben';
+      }
+
+      const knockBtn = document.getElementById('btn-knock');
+      knockBtn.disabled = false;
+      if (!canSelectCards) {
+        knockBtn.className = 'btn btn-amber btn-inactive';
+        knockBtn.setAttribute('aria-disabled', 'true');
+        knockBtn.textContent = 'Klopfen (Knack!)';
+      } else if (mustSwapFirst) {
+        knockBtn.className = 'btn btn-amber btn-locked';
+        knockBtn.setAttribute('aria-disabled', 'true');
+        knockBtn.textContent = '🔒 Klopfen (1. Umlauf)';
+      } else if (st.knockedBy !== null) {
+        knockBtn.className = 'btn btn-amber btn-locked';
+        knockBtn.setAttribute('aria-disabled', 'true');
+        knockBtn.textContent = '🔒 Bereits geklopft';
+      } else {
+        knockBtn.className = 'btn btn-amber';
+        knockBtn.removeAttribute('aria-disabled');
+        knockBtn.textContent = 'Klopfen (Knack!)';
+      }
     }
 
     function renderPodiumHTML(st) {
@@ -3188,7 +3266,13 @@
       '1 Karte tauschen': ['Swap 1 card', 'Échanger 1 carte', 'Cambiar 1 carta', 'Scambia 1 carta'],
       'Alle 3 tauschen': ['Swap all 3', 'Échanger les 3', 'Cambiar las 3', 'Scambia tutte e 3'],
       'Schieben': ['Pass', 'Passer', 'Pasar', 'Passa'],
+      '🔒 Schieben (1. Umlauf)': ['🔒 Pass (1st round)', '🔒 Passer (1er tour)', '🔒 Pasar (1.ª ronda)', '🔒 Passa (1° turno)'],
       'Klopfen (Knack!)': ['Knock (Knack!)', 'Frapper (Knack !)', 'Tocar (¡Knack!)', 'Bussa (Knack!)'],
+      '🔒 Klopfen (1. Umlauf)': ['🔒 Knock (1st round)', '🔒 Frapper (1er tour)', '🔒 Tocar (1.ª ronda)', '🔒 Bussa (1° turno)'],
+      '🔒 Bereits geklopft': ['🔒 Already knocked', '🔒 Déjà frappé', '🔒 Ya se tocó', '🔒 Già bussato'],
+      '1. Umlauf: Tauschpflicht! Bitte 1 oder alle 3 Karten tauschen.': ['1st round: Must swap! Please swap 1 or all 3 cards.', '1er tour : échange obligatoire ! Échangez 1 ou les 3 cartes.', '1.ª ronda: ¡cambio obligatorio! Cambia 1 o las 3 cartas.', '1° turno: scambio obbligatorio! Scambia 1 o tutte e 3 le carte.'],
+      'Es wurde in dieser Runde bereits geklopft!': ['Someone already knocked this round!', 'Quelqu’un a déjà frappé dans cette manche !', '¡Ya alguien tocó en esta ronda!', 'Qualcuno ha già bussato in questo round!'],
+      'Du bist gerade nicht am Zug.': ['It is not your turn right now.', 'Ce n’est pas votre tour pour le moment.', 'No es tu turno en este momento.', 'Non è il tuo turno in questo momento.'],
       'AN': ['ON', 'OUI', 'SÍ', 'SÌ'],
       'AUS': ['OFF', 'NON', 'NO', 'NO'],
       'Tauschpflicht im 1. Umlauf': ['Must swap on first turn', 'Échange obligatoire au premier tour', 'Cambio obligatorio en el primer turno', 'Scambio obbligatorio al primo turno'],
