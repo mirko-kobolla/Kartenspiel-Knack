@@ -33,10 +33,10 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
+      margin: 0; padding: 0; width: 100%; min-height: 100%;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
 
     button {
@@ -301,7 +301,7 @@
 
     /* ================= UNIFIED GAMEPLAY VIEW ================= */
     .play-layout { flex: 1; display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 0; }
-    .active-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+    .active-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding-bottom: 12px; }
 
     .opponents-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
     .opp-pill {
@@ -507,12 +507,26 @@
 
     @media (max-width: 860px) {
       .role-grid, .lobby-grid, .tables-grid { grid-template-columns: 1fr; }
+      .active-area { gap: 8px; padding-bottom: 12px; }
+      .tables-grid { gap: 8px; }
+      .hand-panel { padding: 8px 10px; gap: 6px; }
+      .last-move-bar { padding: 6px 10px; min-height: 44px; }
       .action-dock {
         grid-template-columns: repeat(2, 1fr);
-        padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
-        margin-bottom: 8px;
+        position: sticky;
+        bottom: 0;
+        z-index: 50;
+        background: rgba(30, 41, 59, 0.96);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid var(--border);
+        box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.5);
+        padding: 10px 12px max(14px, env(safe-area-inset-bottom, 14px)) 12px;
+        margin-bottom: 0;
+        gap: 8px;
       }
-      .playing-card { width: 84px; height: 124px; }
+      .action-dock .btn { padding: 12px 8px; min-height: 50px; }
+      .playing-card { width: 78px; height: 114px; }
       .swap-lane { grid-template-columns: 74px 1fr 74px; padding: 10px; }
     }
   </style>
