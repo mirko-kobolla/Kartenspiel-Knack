@@ -7,9 +7,10 @@ Dieses Repository enthält zwei eigenständige Webseiten zum Knack-Spiel. Sie we
 | Mirko | [`Knack.html`](./Knack.html) | [Technische Dokumentation](./docs/versionen/mirko.md) |
 | Google AI Studio | [`ai-studio/index.html`](./ai-studio/index.html) | [Versionseinstieg](./ai-studio/README.md) und [technische Dokumentation](./docs/versionen/ai-studio.md) |
 
-## Weiteres Spiel
+## Weitere Spiele
 
 - [Zauberwürfel 3D](./Zauberwuerfel-3D/index.html) ist eine eigenständige Webseite zum interaktiven Drehen und Lösen eines 3×3-Zauberwürfels. Hinweise zur Bedienung stehen in der [Projektanleitung](./Zauberwuerfel-3D/README.md).
+- [König und Bettler](./koenig-und-bettler/index.html) ist ein eigenständiges Kartenspiel für 3 bis 8 Personen und Bots, mit Demo-Modus und PeerJS-Multiplayer.
 
 ## Dokumentation
 

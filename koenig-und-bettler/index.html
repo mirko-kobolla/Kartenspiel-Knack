@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>König und Bettler</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#0f172a;--panel:#1e293b;--soft:#273549;--border:#334155;--text:#f8fafc;--muted:#94a3b8;--accent:#38bdf8;--green:#22c55e;--gold:#facc15;--red:#ef4444}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow-x:clip}
+body{min-height:100dvh} button,input,select{font:inherit} button{cursor:pointer;touch-action:manipulation} button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.shell{max-width:1250px;margin:auto;min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.logo{font-weight:900;color:var(--accent);letter-spacing:.03em}.language-picker{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.85rem}.language-picker select,input{background:#0b1220;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px}
+.start{min-height:75vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:18px}.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #386780;background:#153447;color:#bae6fd;border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:800}.gold{color:#fde68a;border-color:#946a16;background:#463719}.title{font-size:clamp(2.4rem,6vw,4.5rem);line-height:1.04;margin:0;font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,#f8fafc 20%,#38bdf8 80%);-webkit-background-clip:text;background-clip:text;color:transparent}.subtitle{color:var(--muted);max-width:600px;line-height:1.5}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:min(100%,960px)}.choice,.panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 25px #0005}.choice{padding:24px;color:var(--text);display:grid;gap:9px;text-align:center}.choice:hover{border-color:var(--accent)}.choice b{font-size:1.2rem}.choice span{color:var(--muted);line-height:1.4}.choice .icon{font-size:2rem}
+.panel{padding:16px;min-width:0}.panel h2,.panel h3{margin:0 0 12px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.stack{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:14px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.spread{justify-content:space-between}.btn{border:1px solid #475569;background:var(--soft);color:#fff;border-radius:11px;padding:11px 15px;font-weight:800}.btn:hover{filter:brightness(1.15)}.primary{background:#0369a1;border-color:var(--accent)}.green{background:#15803d;border-color:var(--green)}.warn{border-color:#b45309}.small{padding:7px 10px;font-size:.85rem}.locked{opacity:.55}.field{display:grid;gap:7px}.field label{color:var(--muted);font-weight:700}.field input{width:100%;font-size:1rem}.form{max-width:460px;margin:10vh auto}.code{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:900;color:var(--accent);letter-spacing:.1em}.chip{padding:8px 12px;border:1px solid var(--border);background:var(--soft);border-radius:999px}.active{border-color:var(--green);color:#86efac}.offline{color:#fca5a5}.rule{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--soft);border-radius:10px;padding:12px}.rule input{width:22px;height:22px;accent-color:#16a34a}
+.table{background:radial-gradient(ellipse at center,#164b3a,#102a2a 70%,#102334);border:1px solid #2e6951;min-height:180px;border-radius:18px;padding:18px;text-align:center}.table-cards{display:flex;justify-content:safe center;gap:8px;min-height:110px;overflow-x:auto}.hand{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:15px 4px 8px;scrollbar-color:#64748b transparent}.card{width:82px;height:120px;flex:0 0 82px;background:#fffdf7;border:2px solid #cbd5e1;border-radius:9px;color:#111827;position:relative;padding:0;box-shadow:0 5px 12px #0006;transition:transform .15s,border-color .15s}.card.red{color:#c81e1e}.card.selected{transform:translateY(-10px);border-color:#38bdf8;box-shadow:0 0 0 2px #38bdf8}.corner{position:absolute;left:4px;top:3px;font-size:14px;font-weight:900;line-height:1;text-align:center}.corner.bottom{left:auto;top:auto;right:4px;bottom:3px;transform:rotate(180deg)}.art{position:absolute;inset:10px 11px}.art svg{width:100%;height:100%}.card *{pointer-events:none}.dock{position:sticky;bottom:0;z-index:3;display:flex;gap:8px;flex-wrap:wrap;background:#0f172aee;border-top:1px solid var(--border);padding:10px 0 max(10px,env(safe-area-inset-bottom));backdrop-filter:blur(8px)}.dock .btn{flex:1}
+.overlay{position:fixed;inset:0;background:#020617d9;z-index:10;display:flex;align-items:center;justify-content:center;padding:16px}.modal{width:min(100%,650px);max-height:85dvh;overflow:auto;background:var(--panel);border:1px solid var(--accent);border-radius:18px;padding:20px;box-shadow:0 20px 60px #0009}.modal h2{margin-top:0}.explain{background:#153447;border:1px solid #386780;border-radius:12px;padding:12px;line-height:1.55}.toast{position:fixed;z-index:20;right:16px;bottom:max(20px,env(safe-area-inset-bottom));background:#7f1d1d;color:white;border:1px solid #ef4444;border-radius:12px;padding:12px;max-width:min(90vw,450px)}.podium{display:grid;gap:8px}.podium div{background:var(--soft);padding:12px;border-radius:10px}.status{min-height:1.3em;color:#bae6fd;font-size:.9rem}.hidden{display:none!important}
+.tribute-panel{animation:tribute-glow 1.4s ease-out}@keyframes tribute-glow{0%{border-color:var(--gold);box-shadow:0 0 25px #facc1599}100%{border-color:var(--border);box-shadow:0 10px 25px #0005}}@media(prefers-reduced-motion:reduce){.tribute-panel{animation:none}}
+@media(max-width:700px){.choices,.grid{grid-template-columns:1fr}.start{padding:20px 0}.choice{padding:15px}.table{min-height:150px}.card{width:68px;height:100px;flex-basis:68px}.corner{font-size:12px}.shell{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top"><div class="logo">♛ KÖNIG &amp; BETTLER</div><div class="language-picker"><label for="language" data-i18n="language"></label><select id="language" aria-label="Sprache"><option value="de">🇩🇪 Deutsch</option><option value="en">🇬🇧 English</option><option value="fr">🇫🇷 Français</option><option value="es">🇪🇸 Español</option><option value="it">🇮🇹 Italiano</option></select></div></header>
+  <noscript>Bitte JavaScript aktivieren / Please enable JavaScript.</noscript>
+  <main id="app"></main><div id="status" class="status" aria-live="polite"></div>
+</div>
+<div id="popup"></div><div id="toast" aria-live="assertive"></div>
+<script>
+'use strict';
+const words = {
+ language:['Sprache','Language','Langue','Idioma','Lingua'],
+ tagline:['Das Kartenspiel um Krone und Besen. Werde zuerst alle Karten los!','The card game of crown and broom. Be the first to shed your cards!','Le jeu de la couronne et du balai. Débarrassez-vous de vos cartes !','El juego de la corona y la escoba. ¡Descarta tus cartas primero!','Il gioco della corona e della scopa. Scarta tutte le carte per primo!'],
+ host:['Raum eröffnen','Create room','Créer un salon','Crear sala','Crea stanza'], hostDesc:['Mit Freunden und Bots spielen','Play with friends and bots','Jouer avec amis et robots','Juega con amigos y bots','Gioca con amici e bot'],
+ join:['Beitreten','Join','Rejoindre','Unirse','Entra'],joinDesc:['Mit einem Raum-Code verbinden','Join using a room code','Rejoindre avec un code','Conectar con un código','Entra con un codice'],
+ demo:['DEMO ansehen','Watch DEMO','Voir la DÉMO','Ver DEMO','Guarda DEMO'],demoDesc:['Vier Bots erklären jeden Zug','Four bots explain every move','Quatre robots expliquent chaque coup','Cuatro bots explican cada jugada','Quattro bot spiegano ogni mossa'],
+ name:['Dein Name','Your name','Votre nom','Tu nombre','Il tuo nome'],room:['Raum-Code','Room code','Code du salon','Código de sala','Codice stanza'],back:['Zurück','Back','Retour','Volver','Indietro'],create:['Raum erstellen','Create room','Créer le salon','Crear sala','Crea stanza'],
+ players:['Spieler','Players','Joueurs','Jugadores','Giocatori'],addBot:['Bot hinzufügen','Add bot','Ajouter un robot','Añadir bot','Aggiungi bot'],remove:['Entfernen','Remove','Retirer','Eliminar','Rimuovi'],rules:['Hausregeln','House rules','Règles maison','Reglas de la casa','Regole della casa'],clearTwo:['2 räumt sofort ab','2 clears immediately','Le 2 vide immédiatement','El 2 limpia la mesa','Il 2 libera il tavolo'],revolution:['Vierling: Revolution','Four of a kind: revolution','Carré : révolution','Póquer: revolución','Poker: rivoluzione'],reverseInfo:['Kehrt die Rangfolge bis zum Rundenende um.','Reverses the ranking until the round ends.','Inverse la hiérarchie jusqu’à la fin de la manche.','Invierte la jerarquía hasta el fin de la ronda.','Inverte la gerarchia fino alla fine del round.'],
+ start:['Spiel starten','Start game','Démarrer','Empezar','Inizia'],minPlayers:['Mindestens 3, höchstens 8 Spieler.','At least 3 and at most 8 players.','De 3 à 8 joueurs.','De 3 a 8 jugadores.','Da 3 a 8 giocatori.'],waitingHost:['Der Host startet das Spiel.','The host starts the game.','L’hôte lance la partie.','El anfitrión inicia la partida.','L’host avvia la partita.'],
+ round:['Runde','Round','Manche','Ronda','Round'],turn:['Am Zug','Turn','Au tour de','Turno','Di turno'],you:['Du','You','Vous','Tú','Tu'],cards:['Karten','cards','cartes','cartas','carte'],hand:['Deine Hand','Your hand','Votre main','Tu mano','La tua mano'],table:['Tisch','Table','Table','Mesa','Tavolo'],empty:['Freier Tisch – beliebige Kombination eröffnen.','Empty table – lead any combination.','Table libre : ouvrez avec une combinaison.','Mesa libre: abre con cualquier combinación.','Tavolo libero: apri con una combinazione.'],play:['Ausspielen','Play','Jouer','Jugar','Gioca'],pass:['Passen','Pass','Passer','Pasar','Passa'],selected:['Ausgewählt','Selected','Sélection','Seleccionadas','Selezionate'],finished:['Fertig','Finished','Terminé','Terminó','Finito'],
+ tribute:['Tribut · Kartensteuer','Tribute · card exchange','Tribut · échange','Tributo · intercambio','Tributo · scambio'],tributeInfo:['Bettler geben ihre höchsten Karten ab. König und Vize-König wählen nach Erhalt ihre Rückgabe.','Beggars give their highest cards. King and vice-king choose what to return after receiving them.','Les mendiants donnent leurs cartes les plus fortes. Le roi et le vice-roi choisissent ensuite leurs retours.','Los mendigos entregan sus cartas más altas. El rey y el virrey eligen qué devolver después.','I mendicanti danno le carte più alte. Re e vice-re scelgono poi cosa restituire.'],chooseReturn:['Wähle die geforderte Anzahl Karten zur Rückgabe.','Select the required number of cards to return.','Choisissez le nombre de cartes à rendre.','Elige la cantidad de cartas que devolverás.','Scegli il numero di carte da restituire.'],confirm:['Rückgabe bestätigen','Confirm return','Confirmer le retour','Confirmar devolución','Conferma restituzione'],waitingTribute:['Warte auf die Rückgaben.','Waiting for returns.','En attente des retours.','Esperando las devoluciones.','In attesa delle restituzioni.'],returns:['Rückgabe','Return','Retour','Devolución','Restituzione'],given:['Abgegebene Karten','Cards given','Cartes données','Cartas entregadas','Carte cedute'],
+ king:['König','King','Roi','Rey','Re'],viceKing:['Vize-König','Vice-king','Vice-roi','Virrey','Vice-re'],citizen:['Bürger','Citizen','Citoyen','Ciudadano','Cittadino'],viceBeggar:['Vize-Bettler','Vice-beggar','Vice-mendiant','Vicemendigo','Vice-mendicante'],beggar:['Bettler','Beggar','Mendiant','Mendigo','Mendicante'],noRole:['Ohne Rolle','No role','Sans rôle','Sin rol','Senza ruolo'],
+ podium:['Siegerehrung','Podium','Podium','Podio','Podio'],next:['Nächste Runde','Next round','Manche suivante','Siguiente ronda','Prossimo round'],handover:['Host übergeben an','Hand host role to','Céder l’hôte à','Ceder anfitrión a','Passa host a'],leave:['Spiel verlassen','Leave game','Quitter','Salir','Esci'],demoBadge:['DEMO · Erklärspiel','DEMO · tutorial','DÉMO · tutoriel','DEMO · tutorial','DEMO · tutorial'],continue:['Weiter','Continue','Continuer','Continuar','Continua'],
+ options:['Erlaubte Optionen','Allowed options','Options autorisées','Opciones permitidas','Opzioni consentite'],why:['Warum?','Why?','Pourquoi ?','¿Por qué?','Perché?'],botHand:['Handkarten','Hand','Main','Mano','Mano'],demoLead:['Bei freiem Tisch darf jede Gruppe gleicher Karten gelegt werden.','With an empty table any group of equal cards may be played.','Sur une table libre, tout groupe de cartes égales est permis.','Con la mesa libre se permite cualquier grupo de cartas iguales.','A tavolo libero si può giocare qualsiasi gruppo di carte uguali.'],demoRespond:['Gleiche Anzahl und höherer Rang oder passen. Wer passt, darf später wieder mitspielen.','Same number and a higher rank, or pass. Passing does not prevent re-entry.','Même nombre et rang supérieur, ou passer. On peut revenir après avoir passé.','Misma cantidad y rango superior, o pasar. Se puede volver a jugar tras pasar.','Stesso numero e rango superiore, oppure passa. Si può rientrare dopo aver passato.'],demoChoice:['Der Bot spielt seine niedrigste erlaubte Kombination und spart hohe Karten.','The bot plays its lowest legal combination, saving high cards.','Le robot joue sa combinaison valide la plus faible et garde ses fortes cartes.','El bot juega su combinación válida más baja y reserva las cartas altas.','Il bot gioca la combinazione valida più bassa e conserva le carte alte.'],demoPass:['Keine passende höhere Kombination vorhanden; der Bot passt.','No higher matching combination is available, so the bot passes.','Aucune combinaison supérieure ne convient ; le robot passe.','No hay combinación superior válida; el bot pasa.','Non c’è una combinazione superiore valida; il bot passa.'],demoTribute:['Die höchsten Karten wurden automatisch abgegeben; der Empfänger gibt die niedrigsten Karten seiner neuen Hand zurück.','The highest cards were transferred automatically; the recipient returns the lowest cards of their new hand.','Les cartes les plus fortes ont été données automatiquement ; le destinataire rend les plus faibles de sa nouvelle main.','Las cartas más altas se entregaron automáticamente; el receptor devuelve las más bajas de su nueva mano.','Le carte più alte sono state date automaticamente; chi riceve restituisce le più basse della nuova mano.'],
+ demoSpecial:['Eine gültig gespielte 2 räumt sofort ab; ein Vierling kehrt die Rangfolge um.','A legally played 2 clears immediately; four of a kind reverses the ranking.','Un 2 valide vide immédiatement la table ; un carré inverse la hiérarchie.','Un 2 válido limpia la mesa; un póquer invierte la jerarquía.','Un 2 valido libera il tavolo; un poker inverte la gerarchia.'],
+ invalid:['Ungültige Aktion. Prüfe Zug, Anzahl und Rang.','Invalid action. Check turn, count and rank.','Action invalide. Vérifiez le tour, le nombre et le rang.','Acción inválida. Comprueba turno, cantidad y rango.','Azione non valida. Controlla turno, numero e rango.'],needName:['Bitte einen Namen eingeben.','Enter a name.','Saisissez un nom.','Introduce un nombre.','Inserisci un nome.'],badRoom:['Bitte einen Raum-Code wie KB-1234 eingeben.','Enter a room code such as KB-1234.','Saisissez un code comme KB-1234.','Introduce un código como KB-1234.','Inserisci un codice come KB-1234.'],full:['Raum voll oder Spiel bereits gestartet.','Room full or game already started.','Salon plein ou partie déjà commencée.','Sala llena o partida iniciada.','Stanza piena o partita già iniziata.'],connecting:['Verbindung wird hergestellt …','Connecting …','Connexion en cours …','Conectando …','Connessione in corso …'],connected:['Verbunden','Connected','Connecté','Conectado','Connesso'],reconnecting:['Verbindung unterbrochen – erneuter Versuch …','Connection interrupted – reconnecting …','Connexion interrompue – reconnexion …','Conexión interrumpida – reconectando …','Connessione interrotta – riconnessione …'],peerMissing:['PeerJS konnte nicht geladen werden. Internetverbindung prüfen.','PeerJS failed to load. Check your internet connection.','PeerJS indisponible. Vérifiez votre connexion Internet.','No se pudo cargar PeerJS. Comprueba Internet.','PeerJS non disponibile. Controlla Internet.'],networkError:['Verbindungsfehler','Connection error','Erreur de connexion','Error de conexión','Errore di connessione'],offline:['nicht verbunden','disconnected','déconnecté','desconectado','disconnesso'],reversed:['Revolution: Rangfolge umgekehrt','Revolution: ranking reversed','Révolution : hiérarchie inversée','Revolución: jerarquía invertida','Rivoluzione: gerarchia invertita'],normal:['Rangfolge: 3 niedrig · 2 hoch','Ranking: 3 low · 2 high','Hiérarchie : 3 bas · 2 haut','Jerarquía: 3 bajo · 2 alto','Gerarchia: 3 basso · 2 alto'],lastPlayed:['Zuletzt gelegt','Last played','Dernier jeu','Última jugada','Ultima giocata'],passed:['passt','passes','passe','pasa','passa'],played:['spielt','plays','joue','juega','gioca'],migration:['Host-Wechsel läuft …','Host handover in progress …','Transfert de l’hôte …','Cambiando anfitrión …','Trasferimento host …'],demoNext:['Die nächste Runde zeigt den Tribut.','The next round demonstrates tribute.','La manche suivante montre le tribut.','La siguiente ronda muestra el tributo.','Il prossimo round mostra il tributo.']
+};
+const langs=['de','en','fr','es','it'];
+let lang=localStorage.getItem('kb-language') || 'de'; if(!langs.includes(lang)) lang='de';
+const t=k => (words[k] || [k])[langs.indexOf(lang)] || (words[k] || [k])[0];
+function translate(root=document){root.querySelectorAll('[data-i18n]').forEach(el=>{const value=t(el.dataset.i18n);if(el.textContent!==value)el.textContent=value;});}
+document.getElementById('language').value=lang;
+document.getElementById('language').addEventListener('change',e=>{const nameInput=document.getElementById('name'),roomInput=document.getElementById('room');if(nameInput)name=nameInput.value;const roomValue=roomInput?roomInput.value:null;lang=e.target.value;localStorage.setItem('kb-language',lang);document.documentElement.lang=lang;render();if(roomValue!==null)document.getElementById('room').value=roomValue;if(demoPopup)renderDemo();translate();});
+new MutationObserver(records=>{for(const r of records)for(const n of r.addedNodes)if(n.nodeType===1){if(n.matches('[data-i18n]'))n.textContent=t(n.dataset.i18n);translate(n);}}).observe(document.body,{childList:true,subtree:true});
+document.documentElement.lang=lang; translate();
+const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SUITS=[{id:'clubs',symbol:'♣',color:'black'},{id:'spades',symbol:'♠',color:'black'},{id:'hearts',symbol:'♥',color:'red'},{id:'diamonds',symbol:'♦',color:'red'}];
+const RANKS=['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+const LABEL={J:'B',Q:'D',K:'K',A:'A'};
+const ROLE_ICON={king:'👑',viceKing:'🥈',citizen:'👤',viceBeggar:'🥉',beggar:'🧹',noRole:''};
+const PIPS={
+ '2':[[50,23],[50,77]],'3':[[50,18],[50,50],[50,82]],'4':[[27,22],[73,22],[27,78],[73,78]],
+ '5':[[27,22],[73,22],[50,50],[27,78],[73,78]],'6':[[27,18],[73,18],[27,50],[73,50],[27,82],[73,82]],
+ '7':[[27,18],[73,18],[50,34],[27,50],[73,50],[27,82],[73,82]],'8':[[27,18],[73,18],[50,34],[27,50],[73,50],[50,66],[27,82],[73,82]],
+ '9':[[27,16],[73,16],[27,38],[73,38],[50,50],[27,62],[73,62],[27,84],[73,84]],'10':[[27,16],[73,16],[50,27],[27,38],[73,38],[27,62],[73,62],[50,73],[27,84],[73,84]]
+};
+function cardArt(c){
+ const s=SUITS.find(x=>x.id===c.suit), color=s.color==='red'?'#c81e1e':'#111827';
+ if(c.rank==='A')return `<svg viewBox="0 0 100 130"><ellipse cx="50" cy="65" rx="35" ry="43" fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="4 3"/><text x="50" y="23" text-anchor="middle" fill="#b45309" font-size="8" font-weight="bold">ALTENBURG</text><text x="50" y="82" text-anchor="middle" font-size="50" fill="${color}">${s.symbol}</text></svg>`;
+ if(['J','Q','K'].includes(c.rank)){
+  const crown=c.rank==='J'?`<path d="M37 20 Q50 9 63 20 L60 24 Q50 18 40 24Z" fill="#1e3a8a"/>`:`<path d="M37 20 L40 8 45 15 50 6 55 15 60 8 63 20Z" fill="#eab308" stroke="#111827"/>`;
+  const beard=c.rank==='K'?'<path d="M40 28 Q42 40 50 40 Q58 40 60 28 Q50 35 40 28" fill="#9ca3af" stroke="#111827"/>':'';
+  const half=`<path d="M15 62 L22 38 Q50 31 78 38 L85 62Z" fill="${s.color==='red'?'#b91c1c':'#1e3a8a'}" stroke="#111827" stroke-width="2"/><path d="M34 38 L50 58 66 38" fill="#fef3c7" stroke="#eab308" stroke-width="2"/><circle cx="50" cy="27" r="11" fill="#fde68a" stroke="#111827" stroke-width="1.5"/>${beard}<circle cx="46" cy="26" r="1"/><circle cx="54" cy="26" r="1"/>${crown}<text x="78" y="23" font-size="15" fill="${color}">${s.symbol}</text>`;
+  return `<svg viewBox="0 0 100 130">${half}<g transform="rotate(180 50 65)">${half}</g><path d="M5 65H95" stroke="#b45309" stroke-width="2"/><path d="M44 65 L50 60 56 65 50 70Z" fill="#eab308"/></svg>`;
+ }
+ return `<svg viewBox="0 0 100 100">${PIPS[c.rank].map(([x,y])=>`<text x="${x}" y="${y+7}" text-anchor="middle" font-size="24" fill="${color}"${y>50?` transform="rotate(180 ${x} ${y})"`:''}>${s.symbol}</text>`).join('')}</svg>`;
+}
+const cardId=c=>c.suit+'-'+c.rank;
+const short=c=>SUITS.find(s=>s.id===c.suit).symbol+(LABEL[c.rank]||c.rank);
+function cardHTML(c,selectable=false){const s=SUITS.find(x=>x.id===c.suit),label=LABEL[c.rank]||c.rank,id=cardId(c);return `<${selectable?'button':'div'} class="card ${s.color} ${selected.has(id)?'selected':''}" ${selectable?`data-card="${id}" aria-label="${esc(short(c))}" aria-pressed="${selected.has(id)}"`:''}><span class="corner">${label}<br>${s.symbol}</span><span class="art">${cardArt(c)}</span><span class="corner bottom">${label}<br>${s.symbol}</span></${selectable?'button':'div'}>`;}
+function deck(){const d=SUITS.flatMap(s=>RANKS.map(rank=>({suit:s.id,rank})));for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}return d;}
+const order=c=>RANKS.indexOf(c.rank);
+const sortHand=h=>h.sort((a,b)=>order(a)-order(b)||SUITS.findIndex(s=>s.id===a.suit)-SUITS.findIndex(s=>s.id===b.suit));
+const uid=()=>crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
+const code=()=>`KB-${Math.floor(1000+Math.random()*9000)}`;
+let S=null, view=null, mode='start', role=null, myId=null, myToken=null, peer=null, conn=null, room=null, name='', connections=new Map(), selected=new Set(), botTimer=null, demoTimer=null, demoPending=null, demoPopup=null, reconnectTimer=null, connecting=false, migrationPeer=null, migrationTimer=null;
+function player(id,n,bot=false){return {id,name:n,bot,connected:true,hand:[],role:'noRole',token:uid()};}
+function toast(msg){const el=document.getElementById('toast');el.innerHTML=`<div class="toast">${esc(msg)}</div>`;clearTimeout(el.timer);el.timer=setTimeout(()=>el.innerHTML='',4500);}
+function status(msg){document.getElementById('status').textContent=msg;}
+function find(id){return S.players.find(p=>p.id===id);}
+function makeView(id){return {...S,players:S.players.map(p=>({id:p.id,name:p.name,bot:p.bot,connected:p.connected,role:p.role,count:p.hand.length,hand:(p.id===id||S.demo)?p.hand:undefined})),tribute:S.tribute.map(x=>({from:x.from,to:x.to,count:x.count,done:x.done,given:(x.from===id||x.to===id||S.demo)?x.given:undefined})),};}
+function sync(){if(role!=='host')return;view=makeView(myId);for(const [id,c] of connections)if(c.open)c.send({type:'STATE_SYNC',state:makeView(id)});render();scheduleBot();}
+function startRound(){
+ S.round++;S.phase='PLAYING';S.finished=[];S.table=null;S.passes=0;S.reversed=false;S.lastAction=null;S.tribute=[];
+ const d=deck();for(const p of S.players)p.hand=[];d.forEach((c,i)=>S.players[i%S.players.length].hand.push(c));S.players.forEach(p=>sortHand(p.hand));
+ if(S.round===1){S.turn=S.players.find(p=>p.hand.some(c=>c.suit==='clubs'&&c.rank==='3')).id;}
+ else{
+  S.turn=S.players.find(p=>p.role==='king').id;
+  const pairs=[['beggar','king',2],['viceBeggar','viceKing',1]];
+  for(const [low,high,count] of pairs){const a=S.players.find(p=>p.role===low),b=S.players.find(p=>p.role===high);if(!a||!b)continue;const given=sortHand(a.hand).splice(-count);b.hand.push(...given);sortHand(b.hand);S.tribute.push({from:a.id,to:b.id,count,done:false,given});}
+  S.phase='TRIBUTE';
+ }
+ selected.clear();sync();
+}
+function roleFor(i,n){if(i===0)return 'king';if(i===n-1)return 'beggar';if(n>=4&&i===1)return 'viceKing';if(n>=4&&i===n-2)return 'viceBeggar';return 'citizen';}
+function nextActive(id){const index=S.players.findIndex(p=>p.id===id);for(let n=1;n<=S.players.length;n++){const p=S.players[(index+n)%S.players.length];if(p.hand.length)return p.id;}return null;}
+function finishRound(){const last=S.players.find(p=>p.hand.length);if(last)S.finished.push(last.id);S.finished.forEach((id,i)=>find(id).role=roleFor(i,S.players.length));S.phase='SHOWDOWN';S.turn=null;S.table=null;}
+function validCards(p,ids){if(!Array.isArray(ids)||ids.length<1||ids.length>4||new Set(ids).size!==ids.length)return null;const cs=ids.map(id=>p.hand.find(c=>cardId(c)===id));if(cs.some(c=>!c)||!cs.every(c=>c.rank===cs[0].rank))return null;return cs;}
+function legal(p,ids){const cs=validCards(p,ids);if(!cs)return false;if(!S.table)return true;if(cs.length!==S.table.cards.length)return false;const diff=order(cs[0])-order(S.table.cards[0]);return S.reversed?diff<0:diff>0;}
+function act(id,type,data={}){
+ const p=find(id);if(!p)return false;
+ if(type==='TRIBUTE_SELECT'&&S.phase==='TRIBUTE'){
+  const exchange=S.tribute.find(x=>x.to===id&&!x.done),ids=data.cards;
+  if(!exchange||!Array.isArray(ids)||ids.length!==exchange.count||new Set(ids).size!==ids.length||ids.some(x=>!p.hand.some(c=>cardId(c)===x)))return false;
+  const returned=p.hand.filter(c=>ids.includes(cardId(c)));p.hand=p.hand.filter(c=>!ids.includes(cardId(c)));find(exchange.from).hand.push(...returned);sortHand(find(exchange.from).hand);exchange.done=true;
+  if(S.tribute.every(x=>x.done))S.phase='PLAYING';
+ }else if(type==='ACTION'&&S.phase==='PLAYING'&&S.turn===id&&legal(p,data.cards)){
+  const cs=validCards(p,data.cards);p.hand=p.hand.filter(c=>!data.cards.includes(cardId(c)));S.table={cards:cs,owner:id};S.passes=0;S.lastAction={id,type:'played',cards:cs};
+  if(S.rules.revolution&&cs.length===4)S.reversed=!S.reversed;
+  if(!p.hand.length)S.finished.push(id);
+  if(S.players.filter(x=>x.hand.length).length===1)finishRound();
+  else if(S.rules.clearTwo&&cs[0].rank==='2'){S.table=null;S.turn=p.hand.length?id:nextActive(id);}
+  else S.turn=nextActive(id);
+ }else if(type==='PASS'&&S.phase==='PLAYING'&&S.turn===id&&S.table){
+  S.lastAction={id,type:'passed'};S.passes++;
+  const otherActive=S.players.filter(x=>x.hand.length&&x.id!==S.table.owner).length;
+  if(S.passes>=otherActive){const owner=S.table.owner;S.table=null;S.passes=0;S.turn=find(owner).hand.length?owner:nextActive(owner);}
+  else S.turn=nextActive(id);
+ }else return false;
+ sync();return true;
+}
+function botChoice(p){const size=S.table?S.table.cards.length:1;const ranks=RANKS.slice();if(S.reversed)ranks.reverse();for(const r of ranks){const cards=p.hand.filter(c=>c.rank===r).slice(0,size);if(cards.length===size&&legal(p,cards.map(cardId)))return cards;}return null;}
+function renderDemo(){document.getElementById('popup').innerHTML=`<div class="overlay"><div class="modal" role="dialog" aria-modal="true"><span class="badge gold">${esc(t('demoBadge'))}</span><h2>${esc(demoPopup.title())}</h2><div class="explain">${demoPopup.body()}</div><p class="muted">⏱ 6 s</p><button class="btn primary" data-do="demoContinue">${esc(t('continue'))}</button></div></div>`;}
+function showDemo(title,body,callback){demoPending=callback;demoPopup={title,body};renderDemo();demoTimer=setTimeout(continueDemo,6000);}
+function continueDemo(){if(!demoPending)return;clearTimeout(demoTimer);const cb=demoPending;demoPending=null;demoPopup=null;document.getElementById('popup').innerHTML='';cb();}
+function scheduleBot(){
+ clearTimeout(botTimer);if(role!=='host'||!S||demoPending)return;
+ if(S.phase==='SHOWDOWN'&&S.demo){botTimer=setTimeout(()=>showDemo(()=>t('podium'),()=>`<p>${esc(t('demoNext'))}</p>`,()=>startRound()),3000);return;}
+ if(S.phase==='TRIBUTE'){
+  const exchange=S.tribute.find(x=>!x.done&&find(x.to).bot);if(!exchange)return;
+  botTimer=setTimeout(()=>{const p=find(exchange.to),cards=sortHand(p.hand.slice()).slice(0,exchange.count);const run=()=>act(p.id,'TRIBUTE_SELECT',{cards:cards.map(cardId)});
+   if(S.demo)showDemo(()=>`${p.name} · ${t('tribute')}`,()=>`<p>${esc(t('tributeInfo'))}</p><p><b>${esc(find(exchange.from).name)} → ${esc(p.name)}:</b> ${exchange.given.map(short).join(' ')}</p><p><b>${esc(t('botHand'))}:</b> ${p.hand.map(short).join(' ')}</p><p><b>${esc(t('returns'))}:</b> ${cards.map(short).join(' ')}</p><p>${esc(t('demoTribute'))}</p>`,run);else run();},S.demo?1000:650);return;
+ }
+ if(S.phase!=='PLAYING')return;const p=find(S.turn);if(!p||!p.bot)return;
+ botTimer=setTimeout(()=>{const cards=botChoice(p),run=()=>act(p.id,cards?'ACTION':'PASS',cards?{cards:cards.map(cardId)}:{});
+  if(S.demo)showDemo(()=>`${p.name} · ${t('turn')}`,()=>`<p><b>${esc(t('botHand'))}:</b> ${p.hand.map(short).join(' ')}</p><p><b>${esc(t('table'))}:</b> ${S.table?S.table.cards.map(short).join(' '):'—'}</p><p><b>${esc(t('options'))}:</b> ${esc(t(S.table?'demoRespond':'demoLead'))} ${esc(t('demoSpecial'))}</p><p><b>${esc(t('why'))}:</b> ${esc(t(cards?'demoChoice':'demoPass'))}</p><p><b>${esc(t(cards?'play':'pass'))}:</b> ${cards?cards.map(short).join(' '):'—'}</p>`,run);else run();},S.demo?900:500);
+}
+function peerAvailable(){if(typeof Peer==='undefined'){toast(t('peerMissing'));return false;}return true;}
+function bindPeer(p){
+ p.on('disconnected',()=>{if(peer!==p)return;status(t('reconnecting'));retry();});
+ p.on('error',e=>{console.error('PeerJS:',e);if(peer!==p)return;if(e.type==='peer-unavailable'||e.type==='network'||e.type==='server-error'||e.type==='socket-error'){status(`${t('reconnecting')} (${e.type})`);retry();}else{status(`${t('networkError')}: ${e.type}`);toast(`${t('networkError')}: ${e.type}`);}});
+}
+function retry(){
+ if(reconnectTimer||!peer||peer.destroyed)return;
+ reconnectTimer=setTimeout(()=>{reconnectTimer=null;if(!peer||peer.destroyed)return;if(peer.disconnected){try{peer.reconnect();}catch(e){console.error('Reconnect:',e);status(`${t('networkError')}: ${e.message}`);retry();}}else if(role==='client'&&peer.open&&(!conn||!conn.open))connectToHost();},2000);
+}
+function hostPeer(p){
+ bindPeer(p);
+ p.on('connection',c=>{
+  let id=null;
+  c.on('data',msg=>{
+   if(!msg||typeof msg!=='object')return;
+   if(msg.type==='HELLO'&&!id){
+    if(role!=='host'||!S){c.close();return;}
+    let found=S.players.find(x=>!x.bot&&x.token===msg.token);
+    if(!found){
+     if(S.phase!=='LOBBY'||S.players.length>=8||typeof msg.name!=='string'||!msg.name.trim()||msg.name.length>24||typeof msg.token!=='string'||msg.token.length<16){c.send({type:'REJECT',reason:'full'});setTimeout(()=>c.close(),300);return;}
+     found=player(uid(),msg.name.trim());found.token=msg.token;S.players.push(found);
+    }
+    id=found.id;const old=connections.get(id);connections.set(id,c);if(old&&old!==c)old.close();found.connected=true;c.send({type:'WELCOME',id,room:S.room});sync();
+   }else if(id&&connections.get(id)===c){
+    if(msg.type==='SYNC_REQUEST')c.send({type:'STATE_SYNC',state:makeView(id)});
+    else if(['ACTION','PASS','TRIBUTE_SELECT'].includes(msg.type)){if(act(id,msg.type,msg))c.send({type:'ACTION_ACCEPTED'});else c.send({type:'ERROR',key:'invalid'});}
+    else if(msg.type==='MIGRATION_READY'&&S.phase==='SHOWDOWN'&&S.migrating===id&&typeof msg.room==='string'&&/^KB-\d{4}$/.test(msg.room))finishMigration(id,msg.room);
+    else if(msg.type==='MIGRATION_FAILED'&&S.migrating===id){delete S.migrating;sync();toast(t('networkError'));}
+   }
+  });
+  c.on('close',()=>{if(id&&connections.get(id)===c){connections.delete(id);const p=S&&find(id);if(p){p.connected=false;sync();}}});
+  c.on('error',e=>{console.error('Host connection:',e);status(`${t('networkError')}: ${e.type||e.message}`);});
+ });
+}
+function openHost(){
+ if(!peerAvailable())return;
+ room=code();myId=uid();const me=player(myId,name);myToken=me.token;S={room,phase:'LOBBY',round:0,players:[me],rules:{clearTwo:true,revolution:false},finished:[],table:null,turn:null,passes:0,reversed:false,tribute:[],demo:false,lastAction:null};role='host';mode='game';view=makeView(myId);render();status(t('connecting'));
+ function attempt(){const p=new Peer(room);peer=p;let opened=false;hostPeer(p);p.on('open',()=>{if(peer!==p)return;opened=true;status(t('connected'));sync();});p.on('error',e=>{if(peer===p&&e.type==='unavailable-id'&&!opened){p.destroy();room=code();S.room=room;attempt();sync();}});}
+ attempt();
+}
+function startDemo(){role='host';mode='game';myId=null;room='DEMO';S={room,phase:'LOBBY',round:0,players:['Ada','Ben','Clara','David'].map(n=>player(uid(),n,true)),rules:{clearTwo:true,revolution:true},finished:[],table:null,turn:null,passes:0,reversed:false,tribute:[],demo:true,lastAction:null};status('');startRound();}
+function connectClient(){
+ if(!peerAvailable())return;
+ role='client';mode='game';myToken=uid();myId=null;view=null;status(t('connecting'));render();openClientPeer();
+}
+function openClientPeer(){
+ const p=new Peer();peer=p;bindPeer(p);p.on('open',()=>{if(peer!==p)return;connectToHost();});
+}
+function connectToHost(){
+ if(!peer||peer.destroyed||peer.disconnected||connecting||role!=='client')return;
+ connecting=true;const c=peer.connect(room,{reliable:true});conn=c;
+ c.on('open',()=>{if(conn!==c)return;connecting=false;c.send({type:'HELLO',name,token:myToken});});
+ c.on('data',msg=>{
+  if(conn!==c||!msg||typeof msg!=='object')return;
+  if(msg.type==='WELCOME'){myId=msg.id;status(t('connected'));}
+  else if(msg.type==='STATE_SYNC'){view=msg.state;const me=view.players.find(p=>p.id===myId);const available=new Set((me&&me.hand||[]).map(cardId));selected=new Set([...selected].filter(id=>available.has(id)));status(t('connected'));render();}
+  else if(msg.type==='ACTION_ACCEPTED'){selected.clear();render();}
+  else if(msg.type==='ERROR')toast(t(msg.key));
+  else if(msg.type==='REJECT'){toast(t(msg.reason));reset();}
+  else if(msg.type==='MIGRATE_PREPARE')prepareMigration();
+  else if(msg.type==='MIGRATE_COMMIT')becomeHost(msg.state,msg.room);
+  else if(msg.type==='MIGRATE'){room=msg.room;status(t('migration'));conn=null;c.close();connectToHost();}
+ });
+ c.on('close',()=>{if(conn!==c)return;connecting=false;conn=null;if(role==='client'){status(t('reconnecting'));retry();}});
+ c.on('error',e=>{console.error('Client connection:',e);if(conn===c){connecting=false;status(`${t('reconnecting')} (${e.type||e.message})`);retry();}});
+ setTimeout(()=>{if(conn===c&&connecting){connecting=false;c.close();if(conn===c)conn=null;status(t('reconnecting'));retry();}},12000);
+}
+function prepareMigration(){
+ if(migrationPeer||!peerAvailable())return;
+ status(t('migration'));let attempts=0;
+ function attempt(){
+  const newRoom=code(),p=new Peer(newRoom);migrationPeer=p;let opened=false;
+  p.on('open',()=>{if(migrationPeer!==p)return;opened=true;if(!conn||!conn.open){p.destroy();migrationPeer=null;status(t('reconnecting'));return;}conn.send({type:'MIGRATION_READY',room:newRoom});migrationTimer=setTimeout(()=>{if(migrationPeer===p){p.destroy();migrationPeer=null;status(t('networkError'));}},15000);});
+  p.on('error',e=>{if(migrationPeer!==p)return;p.destroy();migrationPeer=null;if(e.type==='unavailable-id'&&!opened&&++attempts<10)attempt();else{console.error('Migration:',e);status(`${t('networkError')}: ${e.type}`);if(conn&&conn.open)conn.send({type:'MIGRATION_FAILED'});}});
+ }
+ attempt();
+}
+function finishMigration(id,newRoom){
+ const target=connections.get(id);if(!target||!target.open){delete S.migrating;sync();return;}
+ S.room=newRoom;delete S.migrating;target.send({type:'MIGRATE_COMMIT',room:newRoom,state:S});
+ for(const [pid,c] of connections)if(pid!==id&&c.open)c.send({type:'MIGRATE',room:newRoom});
+ const old=peer;connections.clear();role='client';room=newRoom;S=null;conn=null;peer=null;old.destroy();status(t('migration'));openClientPeer();
+}
+function becomeHost(state,newRoom){
+ if(!migrationPeer||!migrationPeer.open){toast(t('networkError'));return;}
+ clearTimeout(migrationTimer);const old=peer;peer=migrationPeer;migrationPeer=null;role='host';room=newRoom;S=state;S.players.forEach(p=>{if(!p.bot)p.connected=p.id===myId;});connections=new Map();conn=null;hostPeer(peer);old.destroy();status(t('connected'));sync();
+}
+function resumeNetwork(){
+ if(!peer||peer.destroyed)return;
+ if(peer.disconnected){clearTimeout(reconnectTimer);reconnectTimer=null;retry();}
+ else if(role==='client'){if(conn&&conn.open)conn.send({type:'SYNC_REQUEST'});else{connecting=false;connectToHost();}}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeNetwork();});
+window.addEventListener('online',resumeNetwork);
+function reset(){
+ clearTimeout(botTimer);clearTimeout(demoTimer);clearTimeout(reconnectTimer);clearTimeout(migrationTimer);demoPending=null;demoPopup=null;reconnectTimer=null;connecting=false;
+ if(migrationPeer)migrationPeer.destroy();migrationPeer=null;
+ const old=peer;peer=null;role=null;if(old)old.destroy();connections.clear();conn=null;S=null;view=null;myId=null;myToken=null;selected.clear();mode='start';document.getElementById('popup').innerHTML='';status('');render();
+}
+function sendAction(type,cards){
+ if(role==='host'){if(!act(myId,type,{cards}))toast(t('invalid'));else{selected.clear();render();}}
+ else if(conn&&conn.open)conn.send({type,cards});
+ else toast(t('reconnecting'));
+}
+function render(){
+ const app=document.getElementById('app');
+ const previousHand=app.querySelector('.hand'),handScroll=previousHand?previousHand.scrollLeft:0;
+ if(mode==='start'){
+  app.innerHTML=`<section class="start"><span class="badge">♠ ♥ ♦ ♣ · 3–8</span><h1 class="title">König und Bettler</h1><p class="subtitle" data-i18n="tagline"></p><div class="choices"><button class="choice" data-do="hostForm"><span class="icon">👑</span><b data-i18n="host"></b><span data-i18n="hostDesc"></span></button><button class="choice" data-do="joinForm"><span class="icon">🃏</span><b data-i18n="join"></b><span data-i18n="joinDesc"></span></button><button class="choice" data-do="demo"><span class="icon">🎓</span><b data-i18n="demo"></b><span data-i18n="demoDesc"></span></button></div></section>`;translate(app);return;
+ }
+ if(mode==='hostForm'||mode==='joinForm'){
+  app.innerHTML=`<div class="panel form stack"><h2>${esc(t(mode==='hostForm'?'host':'join'))}</h2><div class="field"><label for="name">${esc(t('name'))}</label><input id="name" maxlength="24" autocomplete="nickname" value="${esc(name)}"></div>${mode==='joinForm'?`<div class="field"><label for="room">${esc(t('room'))}</label><input id="room" maxlength="7" placeholder="KB-1234" autocapitalize="characters"></div>`:''}<div class="row"><button class="btn" data-do="back">${esc(t('back'))}</button><button class="btn primary" data-do="${mode==='hostForm'?'create':'connect'}">${esc(t(mode==='hostForm'?'create':'join'))}</button></div></div>`;return;
+ }
+ if(!view){app.innerHTML=`<div class="panel"><p>${esc(t('connecting'))}</p><button class="btn" data-do="leave">${esc(t('leave'))}</button></div>`;return;}
+ const v=view,me=v.players.find(p=>p.id===myId),isHost=role==='host',isDemo=v.demo,byId=id=>v.players.find(p=>p.id===id);
+ const header=`<div class="top panel"><div class="row"><span class="badge ${isDemo?'gold':''}">${esc(isDemo?t('demoBadge'):v.room)}</span>${v.round?`<span class="badge">${esc(t('round'))} ${v.round}</span>`:''}${v.phase==='PLAYING'?`<span class="badge">${esc(t(v.reversed?'reversed':'normal'))}</span>`:''}</div><button class="btn small" data-do="leave">${esc(t('leave'))}</button></div>`;
+ const chips=v.players.map(p=>`<span class="chip ${v.turn===p.id&&v.phase==='PLAYING'?'active':''} ${!p.connected?'offline':''}">${p.bot?'🤖 ':''}${esc(p.name)}${p.id===myId?' ('+esc(t('you'))+')':''} · ${ROLE_ICON[p.role]} ${esc(t(p.role))}${v.phase!=='LOBBY'?' · '+p.count+' '+esc(t('cards')):''}${v.finished.includes(p.id)?' · #'+(v.finished.indexOf(p.id)+1):''}${!p.connected?' · '+esc(t('offline')):''}${isHost&&v.phase==='LOBBY'&&p.bot?` <button class="btn small" data-remove="${p.id}" aria-label="${esc(t('remove'))}">×</button>`:''}</span>`).join('');
+ if(v.phase==='LOBBY'){
+  app.innerHTML=header+`<div class="grid"><section class="panel stack"><div><h2>${esc(t('room'))}</h2><div class="code">${esc(v.room)}</div></div><div><h3>${esc(t('players'))} · ${v.players.length}/8</h3><div class="row">${chips}</div></div>${isHost?`<div class="row"><button class="btn" data-do="addBot">${esc(t('addBot'))}</button><button class="btn green ${v.players.length<3?'locked':''}" data-do="start">${esc(t('start'))}</button></div><span class="muted">${esc(t('minPlayers'))}</span>`:`<p class="muted">${esc(t('waitingHost'))}</p>`}</section><section class="panel stack"><h2>${esc(t('rules'))}</h2>${['clearTwo','revolution'].map(key=>`<label class="rule"><span><b>${esc(t(key))}</b>${key==='revolution'?`<br><small class="muted">${esc(t('reverseInfo'))}</small>`:''}</span>${isHost?`<input type="checkbox" data-rule="${key}" ${v.rules[key]?'checked':''}>`:`<span>${v.rules[key]?'✓':'—'}</span>`}</label>`).join('')}<p class="muted">${esc(t('normal'))}</p></section></div>`;return;
+ }
+ if(v.phase==='SHOWDOWN'){
+  app.innerHTML=header+`<div class="panel stack"><h2>🏆 ${esc(t('podium'))}</h2><div class="podium">${v.finished.map((id,i)=>`<div><b>${i+1}.</b> ${esc(byId(id).name)} · ${ROLE_ICON[byId(id).role]} ${esc(t(byId(id).role))}</div>`).join('')}</div>${isHost&&!isDemo?`<div class="row"><button class="btn green" data-do="next">${esc(t('next'))}</button>${v.players.filter(p=>!p.bot&&p.id!==myId&&p.connected).map(p=>`<button class="btn warn" data-handover="${p.id}">${esc(t('handover'))} ${esc(p.name)}</button>`).join('')}</div>`:!isDemo?`<p class="muted">${esc(t('waitingHost'))}</p>`:''}</div>`;return;
+ }
+ const myHand=me&&me.hand?me.hand:[];
+ let content=`<section class="panel"><div class="row">${chips}</div></section>`;
+ if(v.phase==='TRIBUTE'){
+  const pending=v.tribute.find(x=>x.to===myId&&!x.done);
+  content+=`<section class="panel tribute-panel"><h2>👑 ${esc(t('tribute'))}</h2><p>${esc(t('tributeInfo'))}</p>${v.tribute.map(x=>`<p>${esc(byId(x.from).name)} → ${esc(byId(x.to).name)} · ${x.count} ${esc(t('cards'))} · ${x.done?'✓':'⏳'}${x.given?`<br><span class="muted">${esc(t('given'))}: ${x.given.map(short).join(' ')}</span>`:''}</p>`).join('')}<p class="badge gold">${esc(t(pending?'chooseReturn':'waitingTribute'))}${pending?' ('+pending.count+')':''}</p></section>`;
+ }else{
+  const last=v.lastAction, table=v.table;
+  content+=`<section class="table"><div class="row spread"><b>${esc(t('table'))}</b><span class="badge">${esc(t('turn'))}: ${esc(byId(v.turn).name)}</span></div><div class="table-cards">${table?table.cards.map(c=>cardHTML(c)).join(''):`<p class="muted">${esc(t('empty'))}</p>`}</div>${last?`<div class="muted">${esc(byId(last.id).name)} ${esc(t(last.type))}${last.cards?' · '+last.cards.map(short).join(' '):''}</div>`:''}</section>`;
+ }
+ if(me)content+=`<section class="panel"><div class="row spread"><h3>${esc(t('hand'))} · ${myHand.length}</h3><span class="muted">${esc(t('selected'))}: ${selected.size}</span></div><div class="hand">${myHand.map(c=>cardHTML(c,true)).join('')||`<span class="muted">${esc(t('finished'))}</span>`}</div></section>`;
+ if(me&&myHand.length){
+  if(v.phase==='TRIBUTE'){const pending=v.tribute.find(x=>x.to===myId&&!x.done);if(pending)content+=`<div class="dock"><button class="btn primary" data-do="tribute">${esc(t('confirm'))} (${pending.count})</button></div>`;}
+  else content+=`<div class="dock"><button class="btn green ${v.turn!==myId?'locked':''}" data-do="play">${esc(t('play'))}</button><button class="btn ${v.turn!==myId||!v.table?'locked':''}" data-do="pass">${esc(t('pass'))}</button></div>`;
+ }
+ app.innerHTML=header+`<div class="stack">${content}</div>`;
+ const currentHand=app.querySelector('.hand');if(currentHand)currentHand.scrollLeft=handScroll;
+}
+document.addEventListener('click',e=>{
+ const card=e.target.closest('[data-card]');if(card){const id=card.dataset.card;selected.has(id)?selected.delete(id):selected.add(id);render();return;}
+ const remove=e.target.closest('[data-remove]');if(remove&&role==='host'&&S.phase==='LOBBY'){S.players=S.players.filter(p=>p.id!==remove.dataset.remove||!p.bot);sync();return;}
+ const handover=e.target.closest('[data-handover]');if(handover&&role==='host'&&S.phase==='SHOWDOWN'&&!S.migrating){const c=connections.get(handover.dataset.handover);if(c&&c.open){S.migrating=handover.dataset.handover;c.send({type:'MIGRATE_PREPARE'});status(t('migration'));setTimeout(()=>{if(S&&S.migrating===handover.dataset.handover){delete S.migrating;status(t('networkError'));sync();}},20000);}return;}
+ const b=e.target.closest('[data-do]');if(!b)return;
+ switch(b.dataset.do){
+  case 'hostForm':case 'joinForm':mode=b.dataset.do;render();break;
+  case 'back':mode='start';render();break;
+  case 'create':case 'connect':{name=document.getElementById('name').value.trim().slice(0,24);if(!name){toast(t('needName'));return;}if(b.dataset.do==='create')openHost();else{room=document.getElementById('room').value.trim().toUpperCase();if(!/^KB-\d{4}$/.test(room)){toast(t('badRoom'));return;}connectClient();}break;}
+  case 'demo':startDemo();break;
+  case 'demoContinue':continueDemo();break;
+  case 'leave':reset();break;
+  case 'addBot':if(role==='host'&&S.phase==='LOBBY'){if(S.players.length>=8){toast(t('minPlayers'));return;}const n=S.players.filter(p=>p.bot).length+1;S.players.push(player(uid(),`Bot ${n}`,true));sync();}break;
+  case 'start':if(role==='host'&&S.phase==='LOBBY'){if(S.players.length<3||S.players.length>8){toast(t('minPlayers'));return;}startRound();}break;
+  case 'next':if(role==='host'&&S.phase==='SHOWDOWN'&&!S.migrating)startRound();break;
+  case 'play':sendAction('ACTION',[...selected]);break;
+  case 'pass':sendAction('PASS');break;
+  case 'tribute':sendAction('TRIBUTE_SELECT',[...selected]);break;
+ }
+});
+document.addEventListener('change',e=>{if(e.target.matches('[data-rule]')&&role==='host'&&S.phase==='LOBBY'){S.rules[e.target.dataset.rule]=e.target.checked;sync();}});
+render();
+</script>
+</body>
+</html>
