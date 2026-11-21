@@ -10,7 +10,7 @@ Dieses Repository enthält zwei eigenständige Webseiten zum Knack-Spiel. Sie we
 ## Weitere Spiele
 
 - [Zauberwürfel 3D](./Zauberwuerfel-3D/index.html) ist eine eigenständige Webseite zum interaktiven Drehen und Lösen eines 3×3-Zauberwürfels. Hinweise zur Bedienung stehen in der [Projektanleitung](./Zauberwuerfel-3D/README.md).
-- [König und Bettler](./koenig-und-bettler/index.html) ist ein eigenständiges Kartenspiel für 3 bis 8 Personen und Bots, mit Demo-Modus und PeerJS-Multiplayer.
+- [König und Bettler](./koenig-und-bettler/index.html) ist ein eigenständiges Kartenspiel für 3 bis 8 Personen und Bots, mit pausierbarem Demo-Modus, dezenten Klängen und PeerJS-Multiplayer. Beim Beitreten genügt die vierstellige Raumnummer.
 
 ## Dokumentation
 
